@@ -1,0 +1,502 @@
+\section{Bulletproofs}
+
+A \emph{bulletproof} consists of multiple elements:
+an inner product argument of logarithmic size and a range proof that makes use of the former.
+%
+To recapitulate,
+in an inner product argument,
+the Prover claims to know two vectors $\vec{x}$ and $\vec{y}$
+such $\vec{x}$ and $\vec{y}$ are openings of given commitments and
+such that their inner product $\vec{x} \dotprod \vec{y}$ is equal to a given scalar $z$.
+%
+In a \emph{range proof} on the other hand,
+the Prover claims to know a scalar opening to a given commitment that is inside a given range.
+We will look into how such a statement can be phrased in terms of inner products below.
+
+\subsection{Logarithmic Inner Product}
+
+Prover: \enquote{I know an opening $\vec{a}$ and $\vec{b}$ to $C$ such that $\vec{a} \dotprod \vec{b} = z$.}
+
+% vectors a and b, and generators are split "left" and "right"
+% polynomials as for Bootle's protocol
+% total cost O(3 log_2(m))
+
+\subsubsection{Base Case}
+
+\begin{enumerate}
+    \item $\prover \to \verifier: a, b$
+    \item \hfill $\verifier: z = a \dotprod b \in \scalars \quad C \overset{?}{=} aG + bH + zI$
+\end{enumerate}
+
+\subsubsection{Reduction}
+
+\begin{enumerate}
+    \item \hfill $\prover, \verifier: m' = \frac{m}{2}$
+    \item $\prover:$
+        \begin{itemize}
+            \item $z_L = \vec{a}_{\trileft} \dotprod \vec{b}_{\triright} \in \scalars$
+            \item $z_R = \vec{a}_{\triright} \dotprod \vec{b}_{\trileft} \in \scalars$
+            \item $L = \vec{a}_{\trileft} \vec{G}_{\triright} + \vec{b}_{\triright} \vec{H}_{\trileft} + z_L I \in \curve$
+            \item $R = \vec{a}_{\triright} \vec{G}_{\trileft} + \vec{b}_{\trileft} \vec{H}_{\triright} + z_R I \in \curve$
+        \end{itemize}
+    \item $\prover \to \verifier: L, R$
+    \item \hfill $\verifier: x \sample \scalars$
+    \item \hfill $\prover \from \verifier: x$
+    \item \hfill $\prover, \verifier:$
+        \begin{itemize}
+            \item \hfill $\vec{G}' = x^{-1}\vec{G}_{\trileft} + x\vec{G}_{\triright} \in \curve^{m'}$
+            \item \hfill $\vec{H}' = x\vec{H}_{\trileft} + x^{-1}\vec{H}_{\triright} \in \curve^{m'}$
+            \item \hfill $C' = C + x^2L + x^{-2}R \in \curve$
+        \end{itemize}
+    \item $\prover:$
+        \begin{itemize}
+            \item $\vec{a'} = x \vec{a}_{\trileft} + x^{-1} \vec{a}_{\triright} \in \scalars^{m'}$
+            \item $\vec{b}' = x^{-1} \vec{b}_{\trileft} + x \vec{b}_{\triright} \in \scalars^{m'}$
+        \end{itemize}
+\end{enumerate}
+
+\subsubsection{Perfect Completeness}
+
+An honest Prover always manages to convince a Verifier because of mathematical equalities.
+\emph{As is tradition at this point, we skip the proofs.}
+
+\subsubsection{Knowledge Soundness and Soundness}
+
+We show that an algorithm can extract the Prover's secret in polynomial time
+and that a valid transcript implies that $\vec{x} \dotprod \vec{y} = z$ holds.
+%
+The procedure is as in Bootle's protocol:
+We construct a recursive algorithm that extracts step $i$ if step $i + 1$ has already been extracted,
+starting at the last step.
+Every step $i$ requires a finite number of instances of the next step $i + 1$.
+To extract the secret of the first step requires exponentially many recursive calls in a tree of logarithmic depth.
+That's polynomially many calls and our polynomial extractor algorithm.
+
+\begin{itemize}
+    \item Base case $m = 1$
+        \begin{itemize}
+            \item Read $a, b$ in plain, compute $z$
+            \item $C = aG + bH + zI$ and $a \dotprod b = z$ hold by definition
+        \end{itemize}
+    \item Reduction
+        \begin{itemize}
+            \item Run $\prover$ until it sends $L, R$ and make a copy
+            \item Run the copy four times for pairwise distinct values $x \in \scalars$
+            \item We know $\vec{a}_i'$, $\vec{b}_i'$, $z_i'$ for $1 \leq i \leq 4$ from previous step such that $C_i' = \vec{a}_i'\vec{G}_i' + \vec{b}_i\vec{H}_i' + z_i'I$ and $\vec{a}_i' \dotprod \vec{b}_i' = z_i$ hold
+            \item Compute $\vec{a}$ and $\vec{b}$ by solving system of linear equations
+            \item We have $C = \vec{a}\vec{G} + \vec{b}\vec{H} + zI$ and $\vec{a} \dotprod \vec{b} = z$
+        \end{itemize}
+\end{itemize}
+%
+We know the following. All these values are known.
+%
+\begin{align*}
+    C_i'
+    &= \vec{a}_i'\vec{G}_i' + \vec{b}_i'\vec{H}_i' + z_i'I \\
+    &= \vec{a}_i'(x_i^{-1}\vec{G}_{\trileft} + x_i\vec{G}_{\triright}) + \vec{b}_i'(x_i\vec{H}_{\trileft} + x_i^{-1}\vec{H}_{\triright}) + (\vec{a}_i' \dotprod \vec{b}_i') I
+\end{align*}
+%
+We want to find an opening of $C_i'$ of the following form:
+%
+\begin{align*}
+    C_i'
+    &= C + x_i^2 L + x_i^{-2} R \\
+    &= \vec{a}\vec{G} + \vec{b}\vec{H} + x_i^2 (\vec{a}_L\vec{G} + \vec{b}_L\vec{H} + z_L I) + x_i^{-2} (\vec{a}_R\vec{G} + \vec{b}_R\vec{H} + z_R I) \\
+    &= (\vec{a} + x^2\vec{a}_L + x^{-2}\vec{a}_R)\vec{G} + (\vec{b} + x^2\vec{b}_L + x^{-2}\vec{b}_R)\vec{H} + (z + x^2z_L + x^{-2}z_R)I
+\end{align*}
+%
+Because of binding, the terms of the same generator vector must be equal:
+%
+\begin{align*}
+    \vec{a}_i'(x_i^{-1}\vec{G}_{\trileft} + x_i\vec{G}_{\triright}) &= (\vec{a} + x_i^2\vec{a}_L + x_i^{-2}\vec{a}_R)\vec{G} \\
+    \vec{b}_i'(x_i\vec{H}_{\trileft} + x_i^{-1}\vec{H}_{\triright}) &= (\vec{b} + x_i^2\vec{b}_L + x_i^{-2}\vec{b}_R)\vec{H} \\
+    (\vec{a}_i' \dotprod \vec{b}_i') I &= (z + x_i^2z_L + x_i^{-2}z_R)I
+\end{align*}
+%
+Because binding holds for each component of these generator vectors,
+the $\trileft$ parts on the LHS must be equal those on the RHS,
+and similar for $\triright$ parts.
+%
+\begin{align*}
+    \vec{a}_i'x_i^{-1} &= \vec{a}_\trileft + x_i^2\vec{a}_{L, \trileft} + x_i^{-2}\vec{a}_{R, \trileft} \\
+    \vec{a}_i'x_i &= \vec{a}_\triright + x_i^2\vec{a}_{L, \triright} + x_i^{-2}\vec{a}_{R, \triright} \\
+    \vec{b}_i'x_i &= \vec{b}_\trileft + x_i^2\vec{b}_{L, \trileft} + x_i^{-2}\vec{b}_{R, \trileft} \\
+    \vec{b}_i'x_i^{-1} &= \vec{b}_\triright + x_i^2\vec{b}_{L, \triright} + x_i^{-2}\vec{b}_{R, \triright}
+\end{align*}
+%
+These equations have the form $\alpha = x + \beta y + \gamma z$,
+where $\alpha, \beta, \gamma$ are known values.
+We can solve for $x, y, z$ by providing three values $\alpha, \beta, \gamma$,
+which we have thanks to three values $x_i$.
+%
+At this point we have computed $\vec{a}$, $\vec{a}_L$, $\vec{a}_R$, $\vec{b}$, $\vec{b}_L$, $\vec{b}_R$, $z$, $z_L$ and $z_R$.
+What remains to show is that these vectors have the right shape.
+%
+Using the above equations,
+we multiply by $x_i$ and $x_i^{-1}$ to obtain two equations for $\vec{a}_i'$ respectively.
+One equation minus the other equals zero.
+%
+\begin{align*}
+    x_i'( \vec{a}_\trileft + x_i^2\vec{a}_{L, \trileft} + x_i^{-2}\vec{a}_{R, \trileft} ) - x_i^{-1} ( \vec{a}_\triright + x_i^2\vec{a}_{L, \triright} + x_i^{-2}\vec{a}_{R, \triright} ) &= 0
+\end{align*}
+%
+We multiply both sides by $x_i^3$ to arrive at a polynomial of degree four defined over $x_i^2$:
+%
+\begin{align*}
+    (x_i^2)^2 \vec{a}_\trileft + (x_i^2)^4 \vec{a}_{L, \trileft} + (x_i^2) \vec{a}_{R, \trileft} - (x_i^2) \vec{a}_\triright - (x_i^2)^2 \vec{a}_{L, \triright} - \vec{a}_{R, \triright} &= 0 \\
+    (x_i^2)^4 \vec{a}_{L, \trileft} + (x_i^2)^2(\vec{a}_\trileft - \vec{a}_{L, \triright}) + (x_i^2)(\vec{a}_{R, \trileft} - \vec{a}_\triright) - \vec{a}_{R, \triright} &= 0
+\end{align*}
+%
+This polynomial is zero at four values of $x_i$,
+so its coefficients must be zero.
+We find that the $\trileft$ side of $\vec{a}_L$ and the $\triright$ side of $\vec{a}_R$ are zero,
+as required.
+Also $\vec{a}_L$ and $\vec{a}_R$ copy from $\vec{a}$.
+%
+\[
+    \vec{a}_{L, \trileft} =  \vec{a}_{R, \triright} = \vec{0} \quad \vec{a}_{\trileft} = \vec{a}_{L, \triright} \quad \vec{a}_{R, \trileft} = \vec{a}_{\triright}
+\]
+%
+A similar analysis can be done for $\vec{b}$, $\vec{b}_L$ and $\vec{b}_R$.
+%
+This establishes knowledge soundness.
+What remains to show is that $z$ is a sound dot product of $\vec{a}$ and $\vec{b}$.
+Using the above equalities,
+we rewrite $\vec{a}_i'$ and $\vec{b}_i'$ in terms of $\vec{a}$ and $\vec{b}$.
+%
+\begin{align*}
+    x_i^{-1}\vec{a}_i' &= \vec{a}_{\trileft} + x_i^2 \vec{0} + x_i^{-2} \vec{a}_{\triright} \\
+    \vec{a}_i' &= x_i \vec{a}_{\trileft} + x_i^{-1} \vec{a}_{\triright} \\
+    \vec{b}_i' &= x_i^{-1} \vec{b}_{\trileft} + x_i \vec{b}_{\triright}
+\end{align*}
+%
+We have an equation for $\vec{a}_i' \dotprod \vec{b}_i'$ from above.
+We substitute the new definitions of $\vec{a}_i'$ and $\vec{b}_i'$ and simplify.
+%
+\begin{align*}
+    z + x_i^2z_L + x_i^{-2}z_R
+    &= \vec{a}_i' \dotprod \vec{b}_i' \\
+    &= (x_i \vec{a}_{\trileft} + x_i^{-1} \vec{a}_{\triright}) \dotprod (x_i^{-1} \vec{b}_{\trileft} + x_i \vec{b}_{\triright}) \\
+    &= \vec{a}_{\trileft} \dotprod \vec{b}_{\trileft} + x_i^2 \vec{a}_{\trileft} \dotprod \vec{b}_{\triright} + x_i^{-2} \vec{a}_{\triright} \dotprod \vec{b}_{\trileft} + \vec{a}_{\triright} \dotprod \vec{b}_{\triright} \\
+    &= \vec{a} \dotprod \vec{b} + x_i^2 \vec{a}_{\trileft} \dotprod \vec{b}_{\triright} + x_i^{-2} \vec{a}_{\triright} \dotprod \vec{b}_{\trileft}
+\end{align*}
+%
+This equation holds for (at least) one random $x$ value in $\scalars$.
+By the Schwartz-Zippel lemma,
+the coefficients are equal with probability greater equal $1 - \frac{2}{n} \approx 1$.
+This establishes soundness.
+%
+\[
+    z = \vec{a} \dotprod \vec{b} \quad z_L = \vec{a}_{\trileft} \dotprod \vec{b}_{\triright} \quad z_R = \vec{a}_{\triright} \dotprod \vec{b}_{\trileft}
+\]
+
+\subsection{Linear Range Proof}
+
+We want to prove that a Pedersen commitment has an opening that is inside a given range.
+This is useful for confidential transactions,
+where the amounts of spent coins are hidden in commitments,
+but we still need to verify that the number of coins going out of the transaction is less equal the number of coins going in (lest we have inflation).
+%
+Such a commitment has the following form,
+where $\gamma \in \scalars$ is the blinding factor and $v \in \scalars$ is the value.
+\[
+    V = \gamma H + vG
+\]
+%
+The Prover claims \enquote{I know an opening $v$ of $V$ such that $v \in [0, 2^m)$}.
+%
+This is well and good,
+but we need to transform this statement to make it work in an interactive proof.
+We start with the original statement:
+%
+\[
+    v \in [0, 2^m)
+\]
+%
+This holds iff we can represent $v$ in a bit vector of size $m$,
+which we call $\vec{a}_L$.
+To make sure that $\vec{a}_L$ is indeed a bit vector (with components $0$ and $1$),
+we introduce another bit vector $\vec{a}_R$ that is $\vec{a}_L$ minus one,
+and require that their component-wise product is zero.
+You can check for yourself that this is equivalent to $v$ being in $[0, 2^m)$.
+%
+\[
+    \vec{a}_L \dotprod \vec{2}^m = v \quad
+    \vec{a}_R = \vec{a}_L - \vec{1} \quad
+    \vec{a}_L \hadamard \vec{a}_R = \vec{0}
+\]
+%
+Next,
+we phrase these conditions in terms of inner products
+using challenge $y \in \scalars$.
+The above holds iff the below holds for all challenges $y \in \scalars$.
+%
+\[
+    \vec{a}_L \dotprod \vec{2}^m = v \quad
+    (\vec{a}_L - \vec{1}^m - \vec{a}_R) \dotprod \vec{y}^m = 0 \quad
+    (\vec{a}_L \hadamard \vec{a}_R) \dotprod \vec{y}^m = 0
+\]
+%
+Now,
+we combine the inner products into a single equation
+using another challenge $z \in \scalars$.
+The above holds iff the below holds for all challenges $z \in \scalars$.
+\[
+    z^2 (\vec{a}_L \dotprod \vec{2}^m) + z((\vec{a}_L - \vec{1}^m - \vec{a}_R) \dotprod \vec{y}^m) + (\vec{a}_L \hadamard \vec{a}_R) \dotprod \vec{y}^m = z^2v
+\]
+%
+Finally,
+we go through a bunch of mathematical transformations that I will skip here to arrive at a single inner product.
+We give each term a name to better keep track of it.
+%
+\begin{align*}
+    \underbrace{(\vec{a}_L - z \vec{1}^m)}_{\asdefined \vecell} \dotprod \underbrace{(\vec{y}^m \hadamard (\vec{a}_R + z \vec{1}^m) + z^2 \vec{2}^m)}_{\asdefined \vec{r}}
+    &= \underbrace{z^2v + \delta(y, z)}_{\asdefined t} \\
+    (z - z^2)(\vec{1}^m \dotprod \vec{y}^m) - z^3 (\vec{1}^m \dotprod \vec{2}^m) &\asdefined \delta(y, z)
+\end{align*}
+%
+There is another problem:
+The vectors $\vec{a}_L$ and $\vec{a}_R$ leak the value of $v$!
+We need this protocol to be zero-knowledge,
+so we commit to these vectors in a Pedersen commitment.
+To transform $\vecell$ and $\vec{r}$,
+we introduce blinding vectors $\vec{s}_L$ and $\vec{s}_R$ that we also commit to.
+%
+\[
+    A = \alpha H + \vec{a}_L\vec{G} + \vec{a}_R\vec{H} \quad S = \rho H + \vec{s}_L\vec{G} + \vec{s}_R\vec{H} \quad \text{where}\ \vec{s}_L, \vec{s}_R \sample \scalars^m
+\]
+%
+We incorporate $\vec{s}_L$ and $\vec{s}_R$ into $\vecell$ and $\vec{r}$ in a clever way to obtain $\vecell(x)$ and $\vec{r}(x)$,
+respectively.
+The useful property of these functions is that they contain the original vectors $\vecell$ and $\vec{r}$,
+respectively,
+plus some function of $x$.
+%
+\begin{align*}
+    \vecell(x) &\definedas (\vec{a}_L - z \vec{1}^m) + \vec{s}_L x = \ell + \vec{s}_L x = \vecell + \vecell'(x) \\
+    \vec{r}(x) &\definedas \vec{y}^m \hadamard (\vec{a}_R + z \vec{1}^m + \vec{s}_R x) + z^2 \vec{2}^m = r + \vec{y}^m \hadamard \vec{s}_R x = \vec{r} + \vec{r}'(x)
+\end{align*}
+%
+Using these definitions and the law of distributivity,
+we can see that the dot product of $\vecell(x)$ and $\vec{r}(x)$
+is the dot product of $\vecell$ and $\vec{r}$ plus two coefficients times a power of $x$.
+%
+\begin{align*}
+    \vecell(x) \dotprod \vec{r}(x)
+    &= \vecell \dotprod \vec{r} + \underbrace{\vecell \dotprod \vec{r}'(x) + \vecell'(x) \dotprod \vec{r}}_{\definedas t_1x} + \underbrace{\vecell'(x) \dotprod \vec{r}'(x)}_{\definedas t_2x^2} \\
+    t_1 &\definedas (\vec{a}_L - z \vec{1}^m) \dotprod (\vec{y}^m \hadamard \vec{s}_R) + \vec{s}_L \dotprod (\vec{y}^m \hadamard (\vec{a}_R + z \vec{1}^m) + z^2 \vec{2}^m) \\
+    t_2 &\definedas \vec{s}_L \dotprod (\vec{y}^m \hadamard \vec{s}_R)
+\end{align*}
+%
+Make sure to distinguish which equalities hold by definition and which equalities imply our original statement.
+The magic happens here:
+If $\vecell \dotprod \vec{r} = t$,
+then $v$ is in the range.
+In other words,
+the following statement holds for all challenges $x, y, z \in \scalars$ iff $v \in [0, 2^m)$.
+%
+\[
+    \vecell(x) \dotprod \vec{r}(x) = t(x) \definedas t + t_1x + t_2x^2
+\]
+
+\subsubsection{Protocol}
+
+\begin{enumerate}
+    \item $\prover:$
+        \begin{itemize}
+            \item $A = \alpha H + \vec{a}_L\vec{G} + \vec{a}_R\vec{H} \in \curve$ where $\alpha \sample \scalars$
+            \item $S = \rho H + \vec{s}_L\vec{G} + \vec{s}_R\vec{H} \in \curve$
+                where $\rho \sample \scalars, \vec{s}_L, \vec{s}_R \sample \scalars^m$
+        \end{itemize}
+    \item $\prover \to \verifier: A, S$
+    \item \hfill $\verifier: y, z \sample \scalars$
+    \item \hfill $\prover \from \verifier: y, z$
+    \item $\prover:$
+        \begin{itemize}
+            \item $T_1 = \tau_1 H + t_1G \in \curve$ where $\tau_1 \sample \scalars$
+            \item $T_2 = \tau_2 H + t_2G \in \curve$ where $\tau_2 \sample \scalars$
+        \end{itemize}
+    \item $\prover \to \verifier: T_1, T_2$
+    \item \hfill $\verifier: x \sample \scalars$
+    \item \hfill $\prover \from \verifier: x$
+    \item $\prover:$
+        \begin{itemize}
+            \item $\tau_x = \tau_2x^2 + \tau_1x + z^2\gamma \in \scalars$
+            \item $\mu = \alpha + \rho x \in \scalars$
+            \item $\hat{\vecell} = \vecell(x) \in \scalars^m$
+            \item $\hat{\vec{r}} = \vec{r}(x) \in \scalars^m$
+            \item $\hat{t} = \hat{\vecell} \dotprod \hat{\vec{r}} \in \scalars$
+        \end{itemize}
+    \item $\prover \to \verifier: \tau_x, \mu, \hat{t}, \hat{\vecell}, \hat{\vec{r}}$
+    \item \hfill $\verifier:$
+        \begin{itemize}
+            \item \hfill $\tau_x H + \hat{t} G \overset{?}{=} z^2 V + \delta(y, z) G + x T_1 + x^2 T_2$
+            \item \hfill $\vec{H}' = \vec{y}^{-m} \hadamard \vec{H} \in \curve^m$
+            \item \hfill $P = A + xS - z\vec{G} + (z \vec{y}^m + z^2 \vec{2}^m) \vec{H}' \in \curve$
+            \item \hfill $P \overset{?}{=} \mu H + \hat{\vecell}\vec{G} + \hat{\vec{r}}\vec{H}'$
+            \item \hfill $\hat{t} \overset{?}{=} \hat{\vecell} \dotprod \hat{\vec{r}}$
+        \end{itemize}
+\end{enumerate}
+
+\subsubsection{Perfect Completeness}
+
+Skipped.
+
+\subsubsection{Knowledge Soundness}
+
+We have to show that a successful interaction with a prover implies knowledge of an opening $v$ of $V$.
+While we are at it,
+we also compute all other values.
+%
+We construct an extractor as follows:
+%
+\begin{enumerate}
+    \item Run $\prover$ until it sends $T_1, T_2$ and make a copy
+    \item Run copy three times for pairwise distinct values $x \in \scalars$
+    \item Compute all values using binding and systems of linear equations
+\end{enumerate}
+%
+A valid transcript gives us the following equality for $i = 1, 2, 3$.
+Make sure to distinguish values which we already know ($x_i, y, z, \ldots)$ and values which we want to compute ($\gamma, v, \tau_1, \ldots$).
+%
+\begin{align*}
+    \tau_{x_i} H + \hat{t} G
+    &= z^2 V + \delta(y, z)G + x_iT_1 + x_i^2T_2 \\
+    &= z^2 (\gamma H + v G) + \delta(y, z)G + x_i (\tau_1 H + t_1 G) + x_i^2 (\tau_2 H + t_2 G)
+\end{align*}
+%
+The coefficients of each generator must be equal.
+Each equation has three unknowns and holds for three values of $x_i$,
+so we can solve it.
+%
+\begin{align*}
+    \tau_{x_i} &= z^2 \gamma + x_i \tau_1 + x_i^2 \tau_2 &&\text{solve}\ \gamma, \tau_1, \tau_2 \\
+    \hat{t} &= z^2 v + \delta(y, z) + x_i t_1 + x_i^2 t_2 &&\text{solve}\ v, t_1, t_2
+\end{align*}
+%
+A valid transcript also gives us the following for $i = 1, 2$.
+%
+\begin{align*}
+    A + x_i S - z\vec{G} + (z \vec{y}^m + z^2 \vec{2}^m)\vec{H}' &= \mu H + \hat{\vecell}_i\vec{G} + \hat{\vec{r}}_i\vec{H}' \\
+    A &= \alpha H + \vec{a}_L\vec{G} + \vec{a}_R\vec{H} \\
+    S &= \rho H + \vec{s}_L\vec{G} + \vec{s}_R\vec{H}
+\end{align*}
+%
+Again,
+the coefficients of each generator must be equal.
+We solve these equations with two unknowns via two values of $x_i$.
+%
+\begin{align*}
+    \alpha + x_i \rho &= \mu && \text{solve}\ \alpha, \rho \\
+    \vec{a}_L + x_i \vec{s}_L - z &= \hat{\vecell}_i && \text{solve}\ \vec{a}_L, \vec{s}_L \\
+    \vec{a}_R + x_i \vec{s}_R + (z \vec{y}^m + z^2 \vec{2}^m) \hadamard \vec{y}^{-m} &= \hat{\vec{r}}_i \hadamard \vec{y}^{-m} \\
+    (\vec{a}_R + x_i \vec{s}_R + z) \hadamard \vec{y}^m + z^2\vec{2}^m &= \hat{\vec{r}}_i && \text{solve}\ \vec{a}_R, \vec{s}_R
+\end{align*}
+
+\subsubsection{Soundness}
+
+We have to show that a successful interaction with a prover implies $v \in [0, 2^m)$.
+This involves reversing the process that let us to construct $\vec{\vecell}(x)$, $\vec{r}(x)$ and $t(x)$ in the first place.
+
+Looking at the equations for $\hat{\vecell}_i$ and $\hat{\vec{r}}_i$ from knowledge soundness,
+we can see that $\hat{\vecell}_i = \vecell(x_i)$ and $\hat{\vec{r}} = \vec{r}(x_i)$ holds for $i = 1, 2, 3$.
+The valid transcript gives us $\hat{\vecell}_i \dotprod \hat{\vec{r}}_i = \hat{t}_i$.
+%
+Combining these facts gives us the following:
+%
+\[
+    \vec{\vecell}(x_i) \dotprod \vec{r}(x_i) = t + x_i t_1 + x_i^2 t_2
+\]
+%
+This equates two quadratic polynomials \emph{(see definitions)} over three values of $x_i$.
+The coefficients of each power of $x_i$ must necessarily be equal:
+%
+\[
+    \vec{\vecell} \dotprod \vec{r} = t \quad
+    \vec{\vecell} \dotprod \vec{r}'(x_i) + \vec{\vecell}'(x_i) \dotprod \vec{r} = x_i t_1 \quad
+    \vec{\vecell}'(x_i) \dotprod \vec{r}'(x_i) = x_i t_2
+\]
+%
+Taking the leftmost equation,
+we reverse the transformations we did at the beginning of this section to arrive at:
+%
+\[
+    z^2 (\vec{a}_L \dotprod \vec{2}^m) + z((\vec{a}_L - \vec{1}^m - \vec{a}_R) \dotprod \vec{y}^m) + (\vec{a}_L \hadamard \vec{a}_R) \dotprod \vec{y}^m = z^2v
+\]
+%
+This is a bivariate polynomial over $y$ and $z$ of degree $m + 1$,
+which no longer includes any $x$.
+So far,
+we have only used one combination of $y, z$.
+If we want,
+we can run the Prover for $m + 2$ pairwise distinct combinations of $y, z$ to obtain the above equality $m + 2$ times.
+Again,
+the coefficients of each power of $y, z$ must be equal \emph{(including the zeroes on the RHS)}.
+%
+\[
+    \vec{a}_L \dotprod \vec{2}^m = v \quad
+    \vec{a}_L - \vec{1}^m - \vec{a}_R = 0 \quad
+    \vec{a}_L \hadamard \vec{a}_R = 0
+\]
+%
+As we have discussed at the beginning,
+these equations imply that $\vec{a}_L$ is a bit representation of $v$.
+This obviously puts $v$ in the range $[0, 2^m)$ since $\vec{a}_L$ has size $m$.
+
+\subsubsection{Honest-Verifier Perfect ZK}
+
+Finally another zero-knowledge proof \emph{(of a zero-knowledge proof (?))}.
+Jokes aside, let's get started.
+
+We construct a simulator for an honest verifier as follows:
+%
+\begin{enumerate}
+    \item $A, T_2 \sample \curve \quad \tau_x, \mu, x, y, z, \hat{t} \sample \scalars$
+    \item $T_1 = x^{-1} ((\hat{t} - \delta(y, z))G - z^2V - x^2T_2 + \tau_xH)$
+    \item Compute $\hat{\vecell}, \hat{\vec{r}} \in \scalars^m$ such that $\hat{\vecell} \dotprod \hat{\vec{r}} = \hat{t}$ holds.
+        This works for any $\hat{t} \in \scalars$.
+    \item $S = x^{-1} (\mu H + z\vec{G} + \hat{\vecell}\vec{G} + (\hat{\vec{r}} - z\vec{y}^m - z^2\vec{2}^m)\vec{H}' - A)$
+\end{enumerate}
+
+
+
+\subsection{Logarithmic Range Proof}
+
+\subsubsection{Protocol}
+
+\begin{enumerate}
+    \setcounter{enumi}{9}
+    \item $\prover \to \verifier: \tau_x, \mu, \hat{t}$
+    \item \hfill $\prover, \verifier:$
+        \begin{itemize}
+            \item \hfill $\vec{H}' = \vec{y}^{-m} \hadamard \vec{H} \in \curve^m$
+            \item \hfill $P = A + xS - z\vec{G} + (z \vec{y}^m + z^2 \vec{2}^m) \vec{H}' \in \curve$
+        \end{itemize}
+    \item \hfill $\verifier: \tau_x H + \hat{t} G \overset{?}{=} z^2 V + \delta(y, z) G + x T_1 + x^2 T_2$
+    \item $\prover:$ Prove knowledge of $\hat{\vecell}, \hat{\vec{r}}$ such that $(P - \mu H) = \hat{\vecell} \vec{G} + \hat{\vec{r}} \vec{H}'$ and $\hat{\vecell} \dotprod \hat{\vec{r}} = \hat{t}$
+\end{enumerate}
+
+\subsubsection{Perfect Completeness}
+
+Same as for the linear range proof.
+The conditions that make up a valid transcript have not changed
+and we have merely outsourced the proof of the inner product,
+which is complete.
+
+\subsubsection{Knowledge Soundness and Soundness}
+
+Surprisingly,
+the same soundness proofs as for the linear case work for the logarithmic case.
+%
+We have to make two adjustments:
+Because the inner product proof is knowledge-sound,
+the Extractor obtains the openings $\hat{\vecell}$ and $\hat{\vec{r}}$ from the Prover.
+Second,
+because the inner product proof is sound,
+we get $P - \mu H = \hat{\vecell}\vec{G} + \hat{\vec{r}}\vec{H}'$,
+equivalent to $P = \mu H + \hat{\vecell}\vec{G} + \hat{\vec{r}}\vec{H}'$,
+and $\hat{\vecell} \dotprod \hat{\vec{r}} = \hat{t}$.
+%
+This is all we need;
+the rest of the proof is exactly as for the linear case.
+Check for yourself.

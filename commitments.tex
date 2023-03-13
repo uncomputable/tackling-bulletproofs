@@ -1,0 +1,193 @@
+\section{Commitments}
+
+In two-party protocols it can be useful to prove to the counterparty that a value used later (at time $t_2$) in the protocol has been fixed/defined at an earlier point in time (at $t_1 < t_2$) without having to reveal the concrete value at $t_1$.
+The technique used to prove this is called \emph{commitments}, since they allow you to \emph{commit} to a value at $t_1$ but to reveal it at $t_2$.
+
+Alice wants to start using a given value, but she doesn't want to share this value with Bob yet.
+Instead, she gives Bob a handle that corresponds to her value.
+The handle makes it impossible that Alice changes her value over time without Bob noticing.
+Later, Alice can reveal the value to Bob and prove that her handle indeed corresponded to this value all along.
+This handle is called a commitment.
+Creating a handle for a value is called to \emph{make} a commitment to a value.
+Proving that the handle corresponds to a value is called to \emph{open} the commitment to the value.
+
+\subsection{Properties}
+
+Commitment schemes must satisfy two properties to be usable:
+
+\begin{description}
+    \item[Hiding:] Commitments do not reveal the value to which they were made.
+    \item[Binding:] Commitments cannot be opened to a different value than the one they were made to.
+\end{description}
+
+A scheme is \emph{statistically (perfectly) hiding} if even a computationally unbounded adversary cannot extract information about a commitment's value with non-negligible probability.
+Likewise,
+a scheme is \emph{statistically (perfectly) binding} if even such an adversary cannot open a commitment to a different value with non-negligible probability.
+%
+Statistical binding excludes statistical hiding:
+A computationally unbounded adversary can simultaneously open a commitment to many messages.
+Statistical binding guarantees that this succeeds only for one value with non-negligible probability.
+This reveals the commitment's value.
+Therefore, the scheme is not statistically hiding.
+
+A scheme is \emph{computationally hiding} or \emph{binding} if the adversary is restricted to polynomial-time algorithms.
+%
+The schemes we will discuss in this document are all statistically hiding and computationally binding.
+
+\subsection{Pedersen Commitment}
+
+A Pedersen commitment to a value $a \in \scalars$ looks as follows:
+\[
+    C(r, a) = rH + aG
+\]
+where $r \in \scalars$ is a random value (blinding factor),
+$H \in \curve$ is a random point
+and $G \in \curve$ is a generator.
+We write $C$ instead of $C(r, a)$ if $r$ and $a$ are not important.
+
+We could set $C = aG$, but then commitments to the same value $a$ look identical.
+This would not be a hiding commitment.
+Instead, we add a random point $rH$ onto $aG$ to hide our value.
+Every time we make a commitment, we pick a random blinding factor $r$.
+The point $H$ is constant across all commitments.
+It is important that no one knows the discrete logarithm of $H$.
+In other words, this point must be NUMS.
+If it weren't, then the commitment would not be binding.
+
+\subsubsection{Nothing up My Sleeve}
+
+Say Alice knew the DLog $H / G = i$ of $H$.
+Then she could make a commitment $C(r, a)$ and later open it to a different value $b \neq a$.
+She does so by constructing commitment $D(s, b) = C$ where $s = r + a - b$.
+
+\[
+    C(r, a) = rH + aG = (h + r + a)G = (h + s + b)G = sH + bG = D(s, b)
+\]
+
+We avoid this catastrophe by constructing points that \emph{no one} knows the DLog of.
+Take any nontrivial input,
+like the binary representation of generator $G$,
+and hash it with a cryptographically secure hash function.
+Interpret the resulting bytes as x coordinate of a curve point (and calculate the corresponding y coordinate).
+Because the hash function is secure, this gives you a pseudorandom point on the curve.
+We don't know the DLog of this point because computing it is infeasible.
+In fact, no one knows the DLog; the point was constructed using entirely different means than point addition.
+The point is genuinely random with no strings attached, so we call it NUMS.
+%
+By trying different inputs, we can generate as many NUMS points as we want.
+
+\subsubsection{Hiding Property}
+
+For every commitment $C(r, a)$ and every $b \in \scalars$,
+there exists some $s \in \scalars$ such that $C(r, a) = D(s, b)$.
+In other words,
+if we set the blinding factors right,
+then we can open a commitment that was made to value $a \in \integers_p$ to any value $b \in \integers_p$.
+%
+Commitments are sums which turn out to be a kind of one-way function:
+A sum can be decomposed into two summands in many ways.
+The larger the sum, the more combinations.
+
+Switching values is infeasible in practice \emph{(due to the DLog, see Binding)},
+but we cannot detect it if it happened,
+even if we had unbounded computational resources.
+Pedersen commitments are \emph{statistically hiding} (like the one-time pad).
+
+\subsubsection{Binding Property}
+
+If there are two commitments $C$ and $D$ that are equal,
+then this \emph{proves} that both the blinding factors \emph{and} and the values of $C$ and $D$ are equal.
+
+\[
+    C = rH + aG = sH + bG = D\ \text{implies}\ r = s\ \text{and}\ a = b
+\]
+
+First, let's show that if the blinding factors are different then the values must \emph{necessarily} be different, and vice versa.
+Point $H$ is distinct from $G$, so there is some nonzero integer $x = P / G \neq 0$.
+We don't \emph{know} $x$, but it \emph{exists}.
+Given this knowledge, we transform the above equation as follows:
+
+\begin{align*}
+    rH + aG &= sH + bG\\
+    rxG + aG &= sxG + bG\\
+    (rx + a)\cdot G &= (sx+b) \cdot G\\
+    rx + a &= sx+b\\
+    (r-s)x &= b-a
+\end{align*}
+
+The final equation holds if both sides are either zero or nonzero.
+We know that $x \neq 0$.
+The term $r - s$ is zero iff $r = s$ because each scalar has a unique additive inverse.
+Similarly, term $b - a$ is zero iff $b = a$.
+For the equation to hold,
+either blinding factors \emph{and} values are equal, or they are all different.
+
+Second, let's see what happens in case $r \neq s$ and $a \neq b$.
+Again, we transform the above equation:
+
+\begin{align*}
+    rH + aG &= sH + bG\\
+    aG - bG &= sH - rH\\
+    (a - b)\cdot G &= (s - r) \cdot H\\
+    (a - b) \cdot (s - r)^{-1} \cdot G &= H
+\end{align*}
+%
+The term $(a - b) \cdot (s - r)^{-1}$ efficiently computes the discrete logarithm of $H$ with respect to $G$.
+Therefore, if Alice can open a commitment to a different value than the original,
+then she can efficiently solve the discrete logarithm of $H$, which is a random point.
+This violates our assumption that the DLog is hard, so this can never happen.
+Pedersen commitments are binding. \qed
+
+\subsubsection{Homomorphism}
+
+The sum of two Pedersen commitments to values $a_1$ and $a_2$
+is equal to the Pedersen commitment of $a_1 + a_2$,
+as long as the blinding factor of the last commitment is the sum of the blinding factors of the first commitments.
+
+\begin{align*}
+    C(r, a) + C(s, b)
+    &= rH + aG + sH + bG \\
+    &= (r + s)H + (a + b)G \\
+    &= C(r + s, a + b)
+\end{align*}
+
+\subsection{Vector Pedersen Commitment}
+
+A Pedersen commitment to a vector $\vec{a} \in \scalars^k$ looks as follows:
+\[
+    C(r, \vec{a}) = rH + (a_1G_1 + \ldots + a_kG_k) = rH + \Vec{a}\vec{G}
+\]
+where $r \in \scalars$ is a random blinding factor,
+$H \in \curve$ is some NUMS point
+and $G_1, \ldots, G_k \in \curve$ are pairwise distinct generators.
+Again, we write just $C$ for brevity.
+
+The commitment is hiding thanks to $rH$.
+The commitment is binding because we would have to compute the DLog of vector component $a_i$ with respect to generator $G_i$ to change $a_i$, which is infeasible.
+This is why we have distinct generators for each component:
+If we had one generator, then the commitment would devolve into $rH(a_1 + \ldots + a_k)G$.
+We could change the order of components, subtract components from each other and so on.
+
+\subsubsection{Homomorphism}
+
+\begin{align*}
+    C(r, \vec{a}) + C(s, \vec{b})
+    &= rH + \vec{a}\vec{G} + sH + \vec{b}\vec{G} \\
+    &= (r + s)H + (\vec{a} \oplus \vec{b})\vec{G} \\
+    &= C(r + s, \vec{a} \oplus \vec{b})
+\end{align*}
+
+\subsubsection{Multiple Vectors}
+
+We can construct Pedersen commitments to multiple vectors by adding more pairwise distinct generators:
+\[
+    C(r, \vec{a}, \vec{b}, \ldots) = rH + \vec{a}\vec{G} + \vec{b}\vec{H} + \ldots
+\]
+
+Multi-vector commitments are equivalent to one large vector commitment that encompasses all their dimensions.
+
+\subsubsection{Compression}
+
+Pedersen commitments are a single curve point, which consists of two coordinates.
+Many vectors of many components are compressed into this single point, so there is obviously information loss.
+This is why the commitments we are using for Bulletproofs can never be perfectly binding.

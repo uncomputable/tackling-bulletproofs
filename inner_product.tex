@@ -1,0 +1,501 @@
+\section{Knowledge of Inner Products}
+
+Inner products are useful because they can encode $\NP$-complete languages.
+%
+You can prove that a Pedersen commitment opens to a value inside a range
+\emph{(one proves knowledge of such an opening; because of binding, this is the only opening with high probability)}.
+This is called a \emph{range proof}.
+\emph{Confidential transactions} have amounts hidden in Pedersen commitments and require range proofs to prevent overflows.
+%
+You can prove knowledge of a \emph{SHA256 preimage}.
+%
+You can prove knowledge of an input that makes an \emph{arithmetic circuit} return a given output.
+%
+Finally,
+you can prove knowledge of solution to a \emph{Sudoku puzzle} and sell it for Bitcoin (ZKCP),
+among many other things.
+
+\subsection{Linear Protocol}
+
+The first protocol we consider proves knowledge of an inner product,
+but its transcripts are rather large (linear in the vector dimension).
+%
+Vectors $\vec{x}, \vec{y} \in \scalars^k$ are publicly known where $k \geq 0$.
+$\prover$ tries to convince $\verifier$ that it knows some scalar $z \in \scalars$ that is the inner product $\vec{x} \dotprod \vec{y} = z$ of $\vec{x}$ and $\vec{y}$.
+\emph{In Euclidean space, the inner product is the dot product.}
+%
+For zero-knowledge,
+we rephrase the above in terms of Pedersen commitments:
+\[
+    C_x = r_xH + \vec{x}\vec{G} \quad C_y = r_yH + \vec{y}\vec{G} \quad C_z = r_zH + zG
+\]
+%
+$\prover$ claims that it knows openings $(r_x, \vec{x})$, $(r_y, \vec{y})$ and $(r_z, z)$ to these commitments such that $\vec{x} \dotprod \vec{y} = z$ holds.
+
+\begin{enumerate}
+    \item $\prover:$
+        \begin{itemize}
+            \item $s_x, s_y, s_1, s_0 \sample \scalars \quad \vec{d}_x, \vec{d}_y \sample \scalars^k$
+            \item $D_x = s_x + \vec{d}_x\vec{G} \in \curve$
+            \item $D_y = s_y + \vec{d}_y\vec{G} \in \curve$
+            \item $D_1 = s_1H + (\vec{x} \dotprod \vec{d}_y + \vec{y} \dotprod \vec{d}_x)G \in \curve$
+            \item $D_0 = s_0H + (\vec{d}_x \dotprod \vec{d}_y)G \in \curve$
+        \end{itemize}
+    \item $\prover \to \verifier: D_x, D_y, D_1, D_0$
+    \item \hfill $\verifier: e \sample \scalars$
+    \item \hfill $\prover \from \verifier: e$
+    \item $\prover:$
+        \begin{itemize}
+            \item $\vec{f}_x = e\vec{x} + \vec{d}_x \in \scalars^k \quad \vec{f}_y = e\vec{y} + \vec{d}_y \in \scalars^k$
+            \item $t_x = er_x + s_x \in \scalars \quad t_y = er_y + s_y \in \scalars$
+            \item $t_z = e^2r_z + es_1 + s_0 \in \scalars$
+        \end{itemize}
+    \item $\prover \to \verifier: \vec{f}_x, \vec{f}_y, t_x, t_y, t_z$
+    \item \hfill $\verifier:$
+        \begin{itemize}
+            \item \hfill $eC_x + D_x \overset{?}{=} t_xH + \vec{f}_x \vec{G}$
+            \item \hfill $eC_y + D_y \overset{?}{=} t_yH + \vec{f}_y \vec{G}$
+            \item \hfill $t_zH + (\vec{f}_x \dotprod \vec{f}_y)G \overset{?}{=} e^2C_z + eD_1 + D_0$
+        \end{itemize}
+\end{enumerate}
+
+\subsubsection{Perfect Completeness}
+
+$\prover$ always manages to convince $\verifier$ because of the following equalities:
+
+\begin{align*}
+    eC_x + D_x &= e(r_xH + \vec{x}\vec{G}) + (s_xH + \vec{d}_x\vec{G}) = (er_x + s_x)H + (e\vec{x} + \vec{d}_x)\vec{G} \\
+    &= t_xH + \vec{f}_x\vec{G} \\
+    eC_y + D_y &= e(r_yH + \vec{y}\vec{G}) + (s_yH + \vec{d}_y\vec{G}) = (er_y + s_y)H + (e\vec{y} + \vec{d}_y)\vec{G} \\
+    &= t_yH + \vec{f}_y\vec{G} \\
+    \vec{f}_x \dotprod \vec{f}_y &= (e\vec{x} + \vec{d}_x) \dotprod (e\vec{y} + \vec{d}_y) = e^2 (\vec{x} \dotprod \vec{y}) + e(\vec{x} \dotprod \vec{d}_y) + e(\vec{y} \dotprod \vec{d}_x) + \vec{d}_x \dotprod \vec{d}_y \\
+    &= e^2 (\vec{x} \dotprod \vec{y}) + e(\vec{x} \dotprod \vec{d}_y + \vec{y} \dotprod \vec{d}_x) + \vec{d}_x \dotprod \vec{d}_y \\
+    t_zH + (\vec{f}_x \dotprod \vec{f}_y)G &= (e^2 r_z + es_1 + s_0)H + (e^2 (\vec{x} \dotprod \vec{y}) + e(\vec{x} \dotprod \vec{d}_y + \vec{y} \dotprod \vec{d}_x) + \vec{d}_x \dotprod \vec{d}_y)G \\
+    &= e^2 (r_zH + zG) + e(s_1H + (\vec{x} \dotprod \vec{d}_y + \vec{y} \dotprod \vec{d}_x)G) + (s_0H + (\vec{d}_x \dotprod \vec{d}_y)G) \\
+    &= e^2 C_z + eD_1 + D_0
+\end{align*}
+
+\subsubsection{Knowledge Soundness}
+
+We construct $\extractor$ as follows:
+
+\begin{itemize}
+    \item Run $\prover$ until it sends its first message and make a copy
+    \item Run the copy 3 times for different values $e \in \scalars$
+    \item The transcripts are $((D_x, D_y, D_1, D_0), e, (\vec{f}_x, \vec{f}_y, t_x, t_y, t_z))$ \\
+    and $(\ldots, e', (\vec{f}_x', \vec{f}_y', t_x', t_y', t_z'))$
+    \item Compute $\vec{x}, \vec{y}$ and finally $z$ as below
+\end{itemize}
+%
+\begin{align*}
+    &eC_x + D_x = t_xH + \vec{f}_x\vec{G} \land e'C_x + D_x = t_x'H + \vec{f}_x'\vec{G} \\
+    \iff&(e - e')C_x = (t_x - t_x')H + (\vec{f}_x - \vec{f}_x')\vec{G} & \vert \cdot \eta \definedas (e - e')^{-1} \\
+    \iff&C_x = \eta(t_x - t_x')H + \eta(\vec{f}_x - \vec{f}_x')\vec{G}
+\end{align*}
+%
+Because Pedersen commitments are binding,
+we can deduce $\vec{x} = \eta(\vec{f}_x - \vec{f}_x')$ with high probability.
+Analogously, we get $\vec{y} = \eta(\vec{f}_y - \vec{f}_y')$.
+%
+Now we turn our attention to $z$ which requires some more transformations.
+%
+Let $(\alpha_1, \beta_1), (\alpha_0, \beta_0) \in \scalars^2$ be openings of $D_1$ and $D_0$, respectively.
+We can open $C_z$ to $(r_z, z)$ with high probability because of binding.
+%
+\begin{align*}
+    t_zH + (\vec{f}_x \dotprod \vec{f}_y)G
+    &= e^2 C_z + eD_1 + D_0 \\
+    &= e^2 (r_zH + zG) + e(\alpha_1H + \beta_1G) + (\alpha_0H + \beta_0G) \\
+    &= H(e^2 r_z + e\alpha_1 + \alpha_0) + G(e^2 z + e\beta_1 + \beta_0)
+\end{align*}
+%
+Again,
+because Pedersen commitments are binding,
+we deduce $\vec{f}_x \dotprod \vec{f}_y = e^2 z + e\beta_1 + \beta_0$ with high probability.
+%
+This is a polynomial of degree 2.
+Having three evaluations $\vec{f}_x \dotprod \vec{f}_y$ of the polynomial at different x-values $e$,
+we can interpolate the coefficients $z$, $\beta_1$ and $\beta_0$.
+
+\subsubsection{Soundness}
+
+We want to show that if $\prover$ manages to convince $\verifier$ with a valid transcript,
+then $\vec{x} \dotprod \vec{y} = z$ actually holds.
+
+Assume we have a valid transcript $((D_x, D_y, D_1, D_0), e, (\vec{f}_x, \vec{f}_y, t_x, t_y, t_z))$.
+%
+We need to deconstruct $\vec{f}_x$, $\vec{f}_y$, $D_1$ and $D_0$ based on the equations on the Verifier's side.
+We start with $\vec{f}_x$:
+Let $(\alpha_x, \vec{\beta}_x) \in \scalars^2$ be any opening of $D_x$.
+%
+\begin{align*}
+    eC_x + D_x &= t_xH + \vec{f}_x\vec{G} \\
+    e(r_xH + \vec{x}\vec{G}) + (\alpha_xH + \vec{\beta}_x\vec{G}) &= t_xH + \vec{f}_x\vec{G} \\
+    e\vec{x} + \vec{\beta}_x &= \vec{f}_x
+\end{align*}
+%
+The last line holds because of binding.
+Similarly,
+we get $e\vec{y} + \vec{\beta}_y = \vec{f}_y$ for any opening $(\alpha_y, \vec{\beta}_y)$ of $D_y$.
+%
+As for knowledge soundness \emph{(see above)},
+we have $\vec{f}_x \dotprod \vec{f}_y = e^2 z + e\beta_1 + \beta_0$ for openings $(\alpha_1, \beta_1), (\alpha_0, \beta_0)$ of $D_1$ and $D_0$.
+%
+\begin{align*}
+    \vec{f}_x \dotprod \vec{f}_y &= e^2 z + e\beta_1 + \beta_0 \\
+    (e\vec{x} + \vec{\beta}_x) \dotprod (e\vec{y} + \vec{\beta}_y) &= e^2 z + e\beta_1 + \beta_0 \\
+    e^2 (\vec{x} \dotprod \vec{y}) + e(\vec{x} \dotprod \vec{\beta}_y + \vec{y} \dotprod \vec{\beta}_x) + \vec{\beta}_x \dotprod \vec{\beta}_x &= e^2 z + e\beta_1 + \beta_0 \\
+    e^2 (\vec{x} \dotprod \vec{y} - z) + e(\ldots - \beta_1) + \vec{\beta}_x \dotprod \vec{\beta}_x - \beta_0 = 0
+\end{align*}
+%
+This is a polynomial $g(x)$ of degree $d = 2$ over $\scalars$.
+The Schwarz-Zippel lemma says that the probability of $g(x) = 0$ is at most $\frac{d}{n} \approx \frac{2}{2^{256}} \approx 0$ if $g$ is a nonzero polynomial.
+We conclude that $g$ is the zero polynomial with high probability and thus $\vec{x} \dotprod \vec{y} = z$ holds.
+
+\subsubsection{Honest-Verifier Perfect ZK}
+
+We construct $\simulator$ for an honest verifier as follows:
+
+\begin{itemize}
+    \item Choose $e, t_x, t_y, t_z, \alpha \in \scalars$ and $\vec{f}_x, \vec{f}_y \in \scalars^k$ randomly
+    \item Set $D_1 = \alpha H + 0G$ \emph{(zero times the generator)}
+    \item Set $D_x = (t_xH + \vec{f}_x\vec{G}) - eC_x$
+    \item Set $D_y = (t_yH + \vec{f}_y\vec{G}) - eC_y$
+    \item Set $D_0 = t_zH + (\vec{f}_x \dotprod \vec{f}_y)G - eD_1 - e^2 C_z$
+\end{itemize}
+%
+The simulated transcripts are valid:
+%
+\begin{align*}
+    eC_x + D_x &= eC_x + (t_xH + \vec{f}_x\vec{G}) - eC_x = t_xH + \vec{f}_x\vec{G} \\
+    eC_y + D_y &= eC_y + (t_yH + \vec{f}_y\vec{G}) - eC_y = t_yH + \vec{f}_y\vec{G} \\
+    t_zH + (\vec{f}_x \dotprod \vec{f}_y)G &= D_0 - ((\vec{f}_x \dotprod \vec{f}_y)G - eD_1 - e^2C_z) + (\vec{f}_x \dotprod \vec{f}_y)G \\
+    &= e^2 C_z + eD_1 + D_0
+\end{align*}
+%
+Here is the probability distribution of the original transcripts:
+%
+\begin{align*}
+    &\prob{D_x} = \prob{D_y} = \prob{D_1} = \prob{D_0} = \prob{e} = \frac{1}{n} \quad \prob{D\ldots, e} = \left( \frac{1}{n} \right)^5 \\
+    &\condprob{\vec{f}_x, t_x}{D\ldots, e} = \condprob{\vec{f}_y, t_y}{D\ldots, e} = \left( \frac{1}{n} \right)^{2k} \quad \condprob{t_z}{D\ldots, e} = 1 \\
+    &\condprob{\vec{f}\ldots, t\ldots}{D\ldots, e} = \left( \frac{1}{n} \right)^{2k} \quad \prob{D\ldots, e, \vec{f}\ldots, t\ldots} = \left( \frac{1}{n} \right)^{2k + 5}
+\end{align*}
+%
+Again,
+the conditional probability $\condprob{\vec{f}_x, t_x}{D\ldots, e}$ is the crux of the computation:
+$\vec{f}_x$ depends on $e$ and $\vec{d}_x$, while $t_x$ depends on $e$ and $s_x$.
+Both \emph{jointly} depend on $D_x$.
+There are $\frac{1}{n^k}$ combinations to form the same $D_x$;
+an arbitrary vector $\vec{d}_x \in \scalars^k$ and a matching blinding factor $s_x \in \scalars$.
+This is why we have to consider the probability of $\vec{f}_x$ \emph{together} with $t_x$.
+%
+There is a similar argument for $\vec{f}_y$ and $t_y$.
+%
+Here is the distribution of the simulated transcripts:
+\begin{align*}
+    &\prob{e, \vec{f}\ldots, t\ldots} = \left( \frac{1}{n} \right)^{2k + 4} \quad \prob{D_1} = \frac{1}{n} \\
+    &\condprob{D_x, D_y, D_0}{e, \vec{f}\ldots, t\ldots} = 1 \\
+    &\condprob{D\ldots}{e, \vec{f}\ldots, t\ldots} = \frac{1}{n} \quad \prob{D\ldots, e, \vec{f}\ldots, t\ldots} = \left( \frac{1}{n} \right)^{2k + 5}
+\end{align*}
+%
+The independent probability $\prob{D\ldots, e, \vec{f}\ldots, t\ldots}$ of the final transcript is the same for both distributions.
+
+\subsection{Logarithmic Protocol}
+
+Our goal is to compress the inner product proof.
+We do so by recursively splitting our vectors $\vec{a}$ and $\vec{b}$.
+In each step, the size of $\vec{a}$ and $\vec{b}$ is divided by a common factor.
+Commitments to challenges ensure that the Prover cannot cheat.
+In the end, the Prover reveals a small vector that the Verifier verifies.
+%
+Instead of sending large vectors,
+we send some curve points (two coordinates) and a small vector in the end.
+The total transcript is logarithmic (!) in the size of $\vec{a}$ and $\vec{b}$.
+
+Bootle's original protocol splits $\vec{a}$ and $\vec{b}$ by an arbitrary divisor of their length.
+This is fine, but some decompositions are better than others.
+In particular, we want to minimize the sum of the factors of a number.
+Prime factors uniquely fulfill this property.
+Among all prime numbers, two is the smallest.
+If the lengths of $\vec{a}$ and $\vec{b}$ is a power of two,
+then we can prove their inner product with the smallest possible transcript.
+Therefore and for simplicity,
+we restrict ourselves to binary splits in this document.
+
+A few things to note.
+%
+Here, Pedersen commitments are \emph{not hiding}.
+This protocol has no zero-knowledge, but it is \emph{not used directly}.
+\emph{Other protocols} define a zero-knowledge inner product which they prove with this protocol.
+This is a repeating pattern for Bulletproofs.
+Therefore, the lack of ZK is no problem.
+%
+We will first concentrate on $\vec{a}$ (in black font) and then generalize to $\vec{b}$ and $z$ \textcolor{gray}{(in gray font)}.
+A recursive protocol for proving knowledge of a vector ($\vec{a}$) is very close to one for proving an inner product, it turns out.
+There are few steps required to make the change.
+
+\subsubsection{Base Case}
+
+Vectors $\vec{a}$ and $\vec{b}$ have length $m = 2$.
+The Prover sends them in plain and 
+the Verifier checks if they match the commitments $A$ and $B$ as well as $z$
+which the Verifier has computed in the previous step.
+
+\begin{enumerate}
+    \item $\prover \to \verifier: \vec{a}{\color{gray}, \vec{b}}$
+    \item \hfill $\verifier:
+        A \overset{?}{=} \sum^{2}_{i = 1} a_iG_i \quad
+        {\color{gray} B \overset{?}{=} \sum^{2}_{i = 1} b_iH_i \quad
+        z \overset{?}{=} \vec{a} \dotprod \vec{b}}$
+\end{enumerate}
+
+\subsubsection{Reduction}
+
+In each step of the recursion,
+we split $\vec{a}$ and $\vec{G}$ of dimension $m$ into chunks (vectors)
+$\vec{a}_1, \vec{a}_2$ and $\vec{G}_1, \vec{G}_2$ of dimension $\frac{m}{2}$.
+%
+Similarly for $\vec{b}$ and $\vec{H}$.
+$z$ is the sum of dot products over the chunks of $\vec{a}$ and $\vec{b}$.
+%
+\begin{align*}
+    &A = \vec{a}\vec{G} = \sum^{m}_{i = 1} a_iG_i = \sum^{2}_{i = 1} \vec{a}_i\vec{G}_i \\
+    &\color{gray}
+    B = \vec{b}\vec{H} = \sum^{m}_{i = 1} b_iH_i = \sum^{2}_{i = 1} \vec{b}_i\vec{H}_i \quad z = \vec{a} \dotprod \vec{b} = \sum^{2}_{i = 1} \vec{a}_i \dotprod \vec{b}_i
+\end{align*}
+%
+Next, the Prover sends the diagonals $A_k$, $B_k$ and $z_k$ of the following matrices, respectively.
+There are three diagonals for a $2 \times 2$ matrix.
+The middle diagonal is exactly $\vec{a}$, $\vec{b}$ and $z$, respectively.
+%
+\[
+    \begin{pmatrix}
+        \vec{a}_1\vec{G}_1 & \vec{a}_2\vec{G}_1 \\
+        \vec{a}_2\vec{G}_2 & \vec{a}_2\vec{G}_2
+    \end{pmatrix}
+    \quad
+    \begin{pmatrix}
+        \vec{b}_1\vec{H}_1 & \vec{b}_2\vec{H}_1 \\
+        \vec{b}_2\vec{H}_2 & \vec{b}_2\vec{H}_2
+    \end{pmatrix}
+    \quad
+    \begin{pmatrix}
+        \vec{a}_1\vec{b}_1 & \vec{a}_2\vec{b}_1 \\
+        \vec{a}_2\vec{b}_2 & \vec{a}_2\vec{b}_2
+    \end{pmatrix}
+\]
+%
+Finally, after challenge $x$ has been received from the Verifier,
+both sides reduce the problem $\vec{a} \dotprod \vec{b} \overset{?}{=} z$ into $\vec{a}' \dotprod \vec{b}' \overset{?}{=} z'$ where $\vec{a}'$ and $\vec{b}'$ have dimension $\frac{m}{2}$.
+%
+Prover and Verifier compute new generators $\vec{G}'$ and a commitment $\vec{A}'$.
+The Prover computes a new vector $\vec{a}'$ such that $\vec{A}' = \vec{a'}\vec{G}'$.
+Similar for $\vec{H}'$, $\vec{B}'$ and $\vec{b}'$.
+Because $z$ is public from the beginning, both sides can compute $z'$ such that $\vec{a}' \dotprod \vec{b}' = z'$ implies $\vec{a} \dotprod \vec{b} = z$.
+
+\begin{enumerate}
+    \item \hfill $\prover, \verifier: m' = \frac{m}{2}$
+    \item $\prover:$
+        \begin{itemize}
+            \item $A_k = \sum^{\min(2, 2 - k)}_{i = \max(1, 1 - k)} \vec{a}_{i + k}\vec{G}_i \in \curve$ for $k = -1, 0, 1$
+            \item { \color{gray} $B_k = \sum^{\min(2, 2 - k)}_{i = \max(1, 1 - k)} \vec{b}_{i + k}\vec{H}_i \in \curve$ for $k = -1, 0, 1$ }
+            \item { \color{gray} $z_k = \sum^{\min(2, 2 - k)}_{i = \max(1, 1 - k)} \vec{a}_i \dotprod \vec{b}_{i + k}$ for $k = -1, 0, 1$ }
+        \end{itemize}
+    \item $\prover \to \verifier: \{ A_k \}, \color{gray} \{ B_k \}, \{ z_k \}$ for $k = -1, 0, 1$
+    \item \hfill $\verifier: x \sample \scalars$
+    \item \hfill $\prover \from \verifier: x$
+    \item \hfill $\prover, \verifier:$
+        \begin{itemize}
+            \item \hfill $A' = \sum^{1}_{k = -1} x^kA_k \in \curve \quad
+                \vec{G}' = \sum^{2}_{i = 1} x^{-i}\vec{G}_i \in \curve^{m'}$
+            \item \hfill { \color{gray} $B' = \sum^{1}_{k = -1} x^{-k}B_k \in \curve \quad
+                \vec{H}' = \sum^{2}_{i = 1} x^i\vec{H}_i \in \curve^{m'}$ }
+            \item \hfill { \color{gray} $z' = \sum^{1}_{k = -1} x^{-k} z_k \in \scalars$ }
+        \end{itemize}
+    \item $\prover:
+        \vec{a}' = \sum^{2}_{i = 1} x^i\vec{a}_i \in \scalars^{m'} \quad
+        \color{gray} \vec{b}' = \sum^{2}_{i = 1} x^{-i}\vec{b}_i \in \scalars^{m'}$
+\end{enumerate}
+
+\subsubsection{Perfect Completeness}
+
+An honest Prover always manages to convince a Verifier because of mathematical equalities.
+\emph{(I cannot be bothered to write this down.
+Just show that the Prover's equations imply the Verifier's equations.
+Most are already the same.
+I have already spent way too much time on Bootle's protocol :P)}
+
+\subsubsection{Knowledge Soundness}
+
+We construct $\extractor$ recursively,
+like the protocol:
+Our goal is to recursively extract $\vec{a}$ from $\vec{a}'$ which we know from the previous step.
+%
+The extraction of $\vec{b}$ from $\vec{b}'$ is analogous.
+%
+\begin{itemize}
+    \item Base case $m = 2$
+        \begin{itemize}
+            \item Run $\prover$ normally
+            \item Read $\vec{a}$ in plain and verify $A \overset{?}{=} \vec{a}\vec{G}$
+        \end{itemize}
+    \item Reduction
+        \begin{itemize}
+            \item Run $\prover$ until it sends its messages and make a copy
+            \item Run the copy $3$ times for pairwise distinct values $x \in \scalars$
+            \item We know $\vec{a}'$ such that $A' = \vec{a}'\vec{G}'$ from previous step
+            \item Compute vectors $\vec{a}_{k, i}$ through interpolation of polynomial that defines $A'$ (see below)
+            \item Write $A_k$ as sum of $\vec{a}_{k, i}$ and $\vec{G}_i$ (see below)
+            \item Construct $\vec{a}$ as components from $\vec{a}_{k, i}$ (see below)
+            \item We have $A = \vec{a}\vec{G}$
+        \end{itemize}
+\end{itemize}
+%
+As you can see, the recursion starts from the \emph{bottom}, i.e.,
+the base case where every vector is sent in plain.
+Higher reduction steps rely on the fact that we know $\vec{a}'$.
+To do the full extraction, which starts from the \emph{top},
+we must run $\prover$ a total of $m < 3^{\log_2 m} < m^2$ times,
+where $\log_2 m$ is the recursion depth.
+Thanks to the logarithmic exponent, the total time is polynomial.
+
+Let's do the reduction in detail.
+We start with what we know: $A' = \vec{a}'\vec{G}'$.
+%
+\begin{align*}
+    x^{-1} A_{-1} + A_0 + x A_1 &= \vec{a}' (x^{-1} \vec{G}_1 + x^{-2} \vec{G}_2) \\
+    x^{-1} (A_{-1} + x A_0 + x^2 A_1) &= x^{-1} \vec{a}' \vec{G}_1 + x^{-2} \vec{a}' \vec{G}_2 \\
+    &= \underbrace{\begin{bmatrix} x^{-1} a'_1 \\ x^{-1} a'_2 \\ x^{-2} a'_1 \\ x^{-2} a'_2 \end{bmatrix}}_{W(x)}
+    \dotprod
+    \underbrace{\begin{bmatrix} G_{11} \\ G_{12} \\ G_{21} \\ G_{22} \end{bmatrix}}_{GG}
+\end{align*}
+%
+We rearrange the equations to reveal that the LHS is a quadratic polynomial shifted by $x^{-1}$
+and the RHS is the dot product of vectors $W(x)$ and $GG$.
+We have three $x$ values for which this equation holds,
+so we can rewrite it in terms of the Vandermonde matrix.
+The dot product on the RHS turns into matrix multiplication of $W \definedas [W(x_1), W(x_2), W(x_3)]^\top$ and $GG$.
+%
+\begin{align*}
+    \underbrace{\begin{bmatrix}
+        -x_1^{-1} & 0 & 0 \\
+        0 & -x_2^{-1} & 0 \\
+        0 & 0 & -x_3^{-1}
+    \end{bmatrix} \begin{bmatrix}
+        1 & x_1 & x_1^2 \\
+        1 & x_2 & x_2^2 \\
+        1 & x_3 & x_3^2
+    \end{bmatrix}}_{V:\ 3 \times 3} \underbrace{\begin{bmatrix}
+        A^{-1} \\ A_0 \\ A_1
+    \end{bmatrix}}_{AA:\ 3 \times 1} &= \underbrace{W}_{3 \times 4}\ \underbrace{GG}_{4 \times 1}
+\end{align*}
+%
+This is technically a polynomial over two-dimensional points,
+but we can solve for each dimension separately.
+Make sure the dimensions of each matrix matches the matrix multiplication ($[n \times m][m \times o] = [n \times o]$).
+Now we invert the shifted Vandermonde matrix $V$ to compute $AA$.
+%
+\begin{align*}
+    AA = V^{-1} (W\ GG) = (\underbrace{V^{-1} W}_{3 \times 4}) GG
+\end{align*}
+%
+Visualising the matrix multiplication on the RHS,
+the first row of $(V^{-1} W)$ multiplied with $GG$ makes up $A_{-1}$,
+the second row makes up $A_0$ and the third row makes up $A_1$.
+We can think of $(V^{-1} W)$ as the following matrix of two-dimensional vectors $\vec{a}_{k, i}$ for $k = -1, 0, 1$ and $i = 1, 2$.
+%
+\[
+    \begin{bmatrix}
+        \vec{a}_{-1, 1} && \vec{a}_{-1, 2} \\
+        \vec{a}_{0, 1} && \vec{a}_{0, 2} \\
+        \vec{a}_{1, 1} && \vec{a}_{1, 2}
+    \end{bmatrix}
+\]
+%
+We rewrite $A_k$ in terms of these vectors $\vec{a}_{k, i}$ (whose value we know!).
+%
+\[
+    A_k = \sum^2_{i = 1} \vec{a}_{k, i} \vec{G}_i \quad \text{for}\ k = -1, 0, 1
+\]
+%
+We insert this new definition of $A_k$ into the equation $A' = \vec{a}'\vec{G}'$ and simplify.
+%
+\begin{align*}
+    \sum^{1}_{k = -1} x^k \sum^2_{i = 1} \vec{a}_{k, i} \vec{G}_i &= \vec{a}' \sum^2_{i = 1} x^{-i} \vec{G}_i \\
+    \sum^\ell_{i = 1} \sum^{1}_{k = -1} x^k \vec{a}_{k, i} \vec{G}_i &= \sum^2_{i = 1} \vec{a}' x^{-i} \vec{G}_i
+\end{align*}
+%
+Because of binding, the two sums are equal iff each summand is equal.
+%
+\[
+    \implies \sum^{1}_{k = -1} x^k \vec{a}_{k, i} = \vec{a}' x^{-i} \iff
+    \vec{a}' = \sum^{1}_{k = -1} x^{k + i} \vec{a}_{k, i} \quad \text{for}\ i = 1, 2
+\]
+This is a really strange equation for $\vec{a}'$ because it is \emph{independent} of $i$!
+We rewrite this equality as follows:
+%
+\begin{align*}
+    \sum^{1}_{k = -1} x^{k + 1} \vec{a}_{k, 1} &= \sum^{1}_{k = -1} x^{k + 2} \vec{a}_{k, 2} \\
+    \vec{a}_{-1, 1} + x\vec{a}_{0, 1} + x^2\vec{a}_{1, 1} &= x\vec{a}_{-1, 2} + x^2\vec{a}_{0, 2} + x^3\vec{a}_{1, 2}
+\end{align*}
+%
+The above equations hold for random values of $x$, which restricts $\vec{a}_{k, i}$:
+%
+\[
+    \vec{a}_{-1, 1} = \vec{0} \quad \vec{a}_{0, 1} = \vec{a}_{-1, 2} \quad \vec{a}_{1, 1} = \vec{a}_{0, 2} \quad \vec{a}_{1, 2} = \vec{0}
+\]
+%
+This can be restated as follows:
+%
+\[
+    \vec{a}_{k, i} = \begin{cases}
+        \vec{a}_{0, k + i} & \text{if}\ 1 \leq k + i \leq 2 \\
+        \vec{0} & \text{otherwise}
+    \end{cases}
+\]
+%
+We define $\vec{a}_i \definedas \vec{a}_{0, i}$.
+Remember that we have computed all vectors $\vec{a}_{k, i}$ in the above interpolation.
+%
+We use the definition of $\vec{a}'$ from above,
+remove the zero terms and shift the sum.
+%
+\begin{align*}
+    \vec{a}' = \sum^{1}_{k = -1} \vec{a}_{k, 1} x^{k + 1} = \sum^{1}_{k = 0} \vec{a}_{k + 1} x^{k + 1} = \sum^2_{i = 1} \vec{a}_i x^i
+\end{align*}
+%
+Vector $\vec{a}$ is simply $\vec{a}_1$ appended with $\vec{a}_2$.
+By $A = A_0 = \vec{a}_1 \vec{G}_1 + \vec{a}_2 \vec{G}_2$ we get $A = \vec{a}\vec{G}$.
+
+\subsubsection{Soundness}
+
+We want to show that a valid transcript implies that $\vec{x} \dotprod \vec{y} = z$ holds.
+Again, the proof is recursive.
+In particular,
+we want to show that $\vec{a}' \dotprod \vec{b}' = z'$ implies $\vec{a} \dotprod \vec{b} = z$ for every step.
+
+The base case is trivial because $\vec{a} \dotprod \vec{b} = z$ holds by definition.
+
+Let us turn to the reduction step.
+%
+From knowledge soundness,
+we know the openings of $\vec{a}'$ and $\vec{b}'$.
+From the previous step,
+we know that their dot product is equal to $z'$.
+The opening of $z'$ is known to the Verifier.
+%
+\begin{align*}
+    \vec{a}' \dotprod \vec{b}' &= z' \\
+    \sum^2_{i = 1} \vec{a}_i x^i + \sum^2_{i = 1} \vec{b}_i x^{-i} &= \sum^1_{k = -1} z_k x^{-k} \\
+    (\vec{a}_1x + \vec{a}_2x^2) \dotprod (\vec{b}_1 x^{-1} + \vec{b}_2 x^{-2}) &= xz_{-1} + z_0 + x^{-1}z_1 \\
+    \vec{a}_1 \dotprod \vec{b}_1 + \vec{a}_1 \dotprod \vec{b}_2 x^{-1} + \vec{a}_2 \dotprod \vec{b}_1 x + \vec{a}_2 \dotprod \vec{b}_2 &= \ldots \\
+    x(\vec{a}_2 \dotprod \vec{b}_1) + (\vec{a}_1 \dotprod \vec{b}_1 + \vec{a}_2 \dotprod \vec{b}_2) + x^{-1} (\vec{a}_1 \dotprod \vec{b}_2) &= \ldots
+\end{align*}
+%
+This equation holds for at least three random values of $x$.
+Therefore the coefficients of each power of $x$ must be equal,
+which gives us what we wanted.
+%
+\[
+    \vec{a}_2 \dotprod \vec{b}_1 = z_{-1} \quad \vec{a}_1 \dotprod \vec{b}_1 + \vec{a}_2 \dotprod \vec{b}_2 = z_0 = z \quad \vec{a}_1 \dotprod \vec{b}_2 = z_1
+\]

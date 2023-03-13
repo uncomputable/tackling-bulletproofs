@@ -1,0 +1,105 @@
+\documentclass[%
+    , 12pt%
+    , a4paper%
+    , titlepage%
+]{article}
+
+% UTF-8 characters
+\usepackage[utf8]{inputenc}
+% US localization
+\usepackage[USenglish]{babel}
+
+% Good tables: \toprule, \midrule, \bottomrule
+\usepackage{booktabs}
+% Good quotes: \enquote
+\usepackage{csquotes}
+% Colors: \color, \textcolor
+\usepackage{xcolor}
+% Dates: \DTMDate
+\usepackage[useregional]{datetime2}
+
+% Various maths macros, such as \implies, \iff, etc.
+\usepackage{amsmath}
+% QED symbol
+\usepackage{amssymb}
+% Various, more exotic maths macros, such as \subsetneq
+% \usepackage{amssymb}
+% \underbracket, \coloneqq, \definedas
+\usepackage{mathtools}
+
+% Cryptographic pseudocode, algorithms and protocols
+\usepackage[%
+    , operators%
+    , probability%
+    , lambda%
+    , advantage%
+    , adversary%
+    , asymptotics%
+]{cryptocode}
+
+% Should be last package import!
+\usepackage[pdfusetitle]{hyperref}
+
+\newcommand{\dotprod}{\boldsymbol{\cdot}}
+\newcommand{\hadamard}{\circ}
+\newcommand{\PTime}{\operatorname{\textsc{PTime}}}
+\newcommand{\PSPace}{\operatorname{\textsc{PSpace}}}
+\newcommand{\NP}{\operatorname{\textsc{NP}}}
+\newcommand{\qed}{\hfill$\square$}
+\renewcommand{\vert}{\ |\ }
+\newcommand{\curve}{\mathbb{E}}
+\newcommand{\field}{\mathbb{F}}
+\newcommand{\naturals}{\mathbb{N}}
+\newcommand{\integers}{\mathbb{Z}}
+\newcommand{\infinity}{\mathcal{O}}
+\newcommand{\prover}{\mathcal{P}}
+\newcommand{\verifier}{\mathcal{V}}
+\newcommand{\simulator}{\mathcal{S}}
+\newcommand{\extractor}{\mathcal{E}}
+\newcommand{\lang}{\mathcal{L}}
+\newcommand{\witnesses}{\operatorname{W}}
+\newcommand{\definedas}{\coloneqq}
+\newcommand{\asdefined}{\eqqcolon}
+\newcommand{\divides}{\vert}
+\renewcommand{\vec}{\mathbf}
+\newcommand{\trileft}{\blacktriangleleft}
+\newcommand{\triright}{\blacktriangleright}
+\newcommand{\vecell}{\vec{\boldsymbol{\ell}}}
+\newcommand{\scalars}{\mathbb{S}}
+\newcommand{\from}{\leftarrow}
+
+\title{Tackling Bulletproofs}
+\author{Christian Lewe, Eric Sirion}
+\date{\today}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \vspace*{5cm}
+        {\Huge Tackling Bulletproofs}
+        
+        \vspace{1.5cm}
+        {\large Christian Lewe, Eric Sirion}
+        
+        \vspace{0.5cm}
+        {\large \today}
+
+        \vspace{2cm}
+        \includegraphics[width=6cm]{tackle.jpg}
+
+        {\tiny\href{https://vignette.wikia.nocookie.net/pokemon/images/1/13/Ash\_Snorlax\_Tackle.png}{(\emph{Snorlax uses Tackle on Team Rocket in bulletproof armor})}}
+    \end{center}
+\end{titlepage}
+
+% \maketitle
+\tableofcontents
+
+\input{introduction}
+\input{commitments}
+\input{interactive_proofs}
+\input{zk_knowledge}
+\input{inner_product}
+\input{bulletproofs}
+
+\end{document}

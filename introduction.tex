@@ -1,0 +1,148 @@
+\section{Introduction}
+
+\subsection{Note}
+
+\emph{In this document, we write \enquote{Bulletproofs} to refer to the scheme
+and \enquote{bulletproofs} to refer to the individual proof(s).}
+
+\subsection{What Are Bulletproofs?}
+
+Bulletproofs are a system to efficiently prove \emph{knowledge} of some value to another party in \emph{zero-knowledge}.
+Often, an \emph{inner product argument} is used in the background.
+Inner products can encode all sorts of things,
+such as all $\NP$ languages (word problem) and all arithmetic circuits (circuit satisfiability).
+This means that the statements that bulletproofs prove are (at least) $\NP$-hard,
+which is enough power to encode practically all problems.
+
+There are many upsides to using Bulletproofs as opposed to other schemes like KZG and FRI.
+The name \enquote{Bulletproofs} means \enquote{short as a bullet with bulletproof security assumptions},
+which hints at the logarithmic proof size and the conservative security assumptions.
+%
+Bulletproofs are shorter than other proofs (FRI) although there exist schemes with proofs of constant size (KZG).
+Small proof size is perfect for blockchain applications,
+where block space is extremely valuable.
+%
+Bulletproofs rely on the hardness of the \emph{discrete logarithm},
+which is a well-understood problem and which already underlies the security of digital signatures in Bitcoin and other cryptocurrencies.
+Other schemes assume pairings (KZG) or collision-resistant hashes (FRI),
+which are new assumptions that need to be adopted first.
+%
+Bulletproofs are \emph{transparent},
+which means that anyone can create a proof that anyone can verify, without prior communication.
+There is no \emph{trusted setup} like in KZG,
+where a shared secret (\emph{common reference string}) is created among all participants in a \emph{trusted setup ceremony},
+which is used in all proofs.
+
+One downside of bulletproofs is that they take linear time to verify,
+as opposed to logarithmic time (FRI) or constant time (KZG).
+This makes bulletproofs useless for applications that try to compress large computations (validity rollups).
+
+There were many buzzwords in the past few paragraphs,
+terms that lacked any definition.
+I marked them in \emph{italics}.
+As we move forward in this document,
+we will define these terms one by one in logical order.
+For now,
+they should give you a general overview of Bulletproofs and enable you to do some online searches.
+
+\subsection{What Is This Document?}
+
+In this document we build a deep understanding of what bulletproofs are and how they work.
+This write-up resulted from a reading group that I hosted,
+where we read \emph{From Zero (Knowledge) to Bulletproofs},
+which I highly recommend you read alongside the present document.
+I learned a lot, but there were many points where I wanted to dive deeper, in particular the proofs.
+In this document we try to explain everything from first principles, to the degree possible.
+We assume some familiarity with elliptic curves and cryptographic schemes,
+although this is explained, too.
+Everything related to zero-knowledge proofs is explained in great detail,
+including the foundations and intuition that are sometimes skimmed over.
+Most importantly,
+this is a technical write-up,
+so if you are looking for a high-level view without maths, better leave now;
+if you want to dive deeper, then welcome to paradise.
+
+\subsection{Resources}
+
+Here are some helpful resources that you should check out.
+In particular,
+you should read \emph{From Zero (Knowledge) to Bulletproofs} which this document builds upon.
+
+\begin{itemize}
+    \item \href{https://pages.cs.wisc.edu/~mkowalcz/628.pdf}{Intuition: \emph{The Strange Cave of Ali Baba}}
+    \item \href{https://github.com/AdamISZ/from0k2bp}{Main: \emph{From Zero (Knowledge) to Bulletproofs}}
+    \item \href{https://people.cs.georgetown.edu/jthaler/ProofsArgsAndZK.html}{More detail: \emph{Proofs, Argument, and Zero-Knowledge}}
+    \item \href{https://vitalik.ca/general/2021/11/05/halo.html}{Vitalik explains Bulletproofs: \emph{Halo and more: exploring incremental verification and SNARKs without pairings}}
+    \item \href{https://dankradfeist.de/ethereum/2021/07/27/inner-product-arguments.html}{Other perspective on Bulletproofs: \emph{Inner Product Arguments}}
+    \item \href{https://explained-from-first-principles.com/number-theory/}{Refresher on number theory: \emph{Explained from first principles}}
+    \item \href{https://github.com/matter-labs/awesome-zero-knowledge-proofs}{List of resources: \emph{Awesome zero knowledge proofs}}
+\end{itemize}
+
+\subsection{Elliptic Curves}
+
+\emph{The maths starts here; you have been warned.
+Check out the \href{https://explained-from-first-principles.com/number-theory/}{refresher on number theory} if any of the following seems fuzzy.}
+
+An \emph{elliptic curve} $\curve$ is a set of two-dimensional \emph{points} $P = (x, y) \in \curve$
+such that the coordinates $x, y \in \field$ stem from some field $\field$.
+In our case,
+we deal with the field $\field = \integers_p$ of integers modulo some number $p \in \naturals$.
+The points on the curve satisfy the equation $y^2 = x^3 + ax + b$ for some coefficients $a, b \in \naturals$.
+
+The curve's operation operation is the \emph{addition} $P + Q$ of two points $P, Q \in \curve$ on the curve.
+\emph{(We use the additive notation).}
+Point addition is \emph{associative} $P + (Q + R) = (P + Q) + R$
+and \emph{commutative} $P + Q = Q + P$ for all points $P, Q, R \in \curve$.
+%
+There is an (additive) \emph{identity} $\infinity \in \curve$,
+called the \emph{point at infinity},
+which satisfies $\infinity + P = P + \infinity = P$ for all $P \in \curve$.
+%
+Furthermore,
+every point $P \in \curve$ has an \emph{inverse} $-P \in \curve$ such that $P + (-P) = \infinity$.
+
+We choose $\curve$ such that its order is a prime number $n \in \naturals$.
+This means that $\curve$ is cyclic,
+i.e., any point $P \in \curve \setminus \{ \infinity \}$
+can be added onto itself $n$ times to reach all points in $\curve$ (exactly once)
+in a cycle which arrives at $\infinity$.
+(The loop is closed in step $n + 1$ where we arrive at $P$ again).
+%
+We call points that can generate the entire curve in this manner \emph{generators},
+and in fact every point but $\infinity$ is a generator.
+Usually,
+we pick an arbitrary point $G \in \curve$ and call it \emph{the} generator of $\curve$.
+
+There is a scalar field $\scalars$ that is isomorphic to the curve $\curve$.
+These are the integers $\integers_n$ modulo $n$.
+%
+\emph{Scalar multiplication} $n \cdot P$ refers to the repeated addition of $P$ onto itself $n$ times,
+for $n \in \scalars$ and $P \in \curve$.
+We often write $nP$ instead of $n \cdot P$, for brevity.
+%
+Recalling the generators $G$ from the previous paragraph,
+we can write $nG = \infinity$ for every generator $G \in \curve$.
+Every point $P \in \curve$ is the result of repeated additions of a generator $G$
+onto itself $i$ times: $P = iG$ for some $i \in \scalars$.
+We call $i$ the \emph{discrete logarithm} of $P$ with respect to $G$,
+which we may also write as $P / G = i$.
+\emph{(This is division, but colloquially the operation is known as logarithm.)}
+%
+Scalar multiplication is homomorphic: $(a + b)P = (a + b)(iG) = (ai + bi)G = aP + bP$,
+for all $a, b \in \scalars$ and all $P \in \curve$.
+In other words, scalar multiplication \emph{distributes} over point addition.
+%
+In equations $aP = bP$,
+where $P \in \curve \setminus \{ \infinity \}$ and $a, b \in \scalars$,
+we may divide both sides by $P$ because $P$ is a generator.
+Both $aP$ and $bP$ are points on $P$'s cycle through $\curve$ which has no repetitions.
+Therefore, for $aP = bP$ to hold, $a = b$ must also hold.
+
+There is no algorithm to efficiently compute the discrete logarithm of a random point.
+A brute-force algorithm has to check all scalars $0 \leq i < n$
+(in case of \href{https://en.bitcoin.it/wiki/Secp256k1}{secp256k1}, $n \approx 2^{256}$).
+This is where the cryptographic security of elliptic curves comes from.
+%
+Known algorithms such as \href{https://en.wikipedia.org/wiki/Baby-step\_giant-step}{Baby-step giant-step} and
+\href{https://en.wikipedia.org/wiki/Pollard\%27s\_rho\_algorithm\_for\_logarithms}{Pollard's rho algorithm}
+compute the discrete log in time $\approx \mathcal{O}(\sqrt{n})$ which is much faster but still not polynomial.

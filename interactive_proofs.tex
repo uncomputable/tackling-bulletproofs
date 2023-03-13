@@ -1,0 +1,314 @@
+\section{Interactive Proofs}
+
+An \emph{interactive proof} (IP) consists of a \emph{prover} that tries to convince a \emph{verifier} of a given statement.
+More concretely,
+there is a function $f: \{ 0, 1 \}^n \to \mathcal{R}$,
+for some fixed $n \geq 0$ and some finite range $\mathcal{R}$.
+The prover tries to convince the verifier that $y = f(x)$ holds for some value $y$
+(ideally without the verifier having to repeat the entire computation).
+
+The IP is realized in an \emph{interactive proof system}.
+At the start of the protocol,
+$f$ and $x$ are \emph{public}, i.e., known to all parties.
+Then,
+the prover sends $y$ to the verifier which it claims satisfies $y = f(x)$.
+What follows is an exchange of messages between prover and verifier.
+Finally,
+the verifier either \emph{accepts} (convinced) or \emph{rejects} (not convinced) that $y = f(x)$ holds.
+The sequence of messages is called the \emph{transcript} of the exchange.
+
+Prover and verifier are modelled as Turing machines:
+The prover is a \emph{deterministic} algorithm of \emph{arbitrary} complexity,
+which we denote by $\prover$.
+This means that $\prover$ has Turing-complete power (and potentially breaks our cryptography) if not otherwise specified.
+Its messages depend on $x, y, f$ and the previous messages.
+%
+The verifier on the other hand is a \emph{probabilistic} algorithm,
+denoted by $\verifier$,
+that runs in polynomial time with respect to $n$.
+Probabilistic algorithms are easier modelled as determinstic algorithms that take a random seed as input.
+$\verifier$'s messages depend on $x, y, f$, its random seed and the previous messages.
+
+\subsection{Completeness}
+
+An IP system is \emph{complete} if the prover (almost) always manages to convince the verifier of true statements $y = f(x)$.
+%
+Formally,
+for every $y \in \mathcal{R}$ such that $y = f(x)$ holds,
+$\verifier$ accepts with high probability.
+($\verifier$'s random seed is assumed to be uniformly random.)
+%
+If $\verifier$ accepts with probability $1$,
+then the system is \emph{perfectly complete}.
+We can construct a perfectly complete system out of any system with acceptance probability $> 0.5$.
+%
+In this document,
+we exclusively focus on perfect completeness.
+
+\subsection{Statistical Soundness}%
+\label{sub:statistical-soundness}
+
+An IP system is \emph{statistically sound} if the verifier (almost) always rejects false statements $y = f(x)$,
+considering all possible ways a prover might try to deceive the verifier.
+%
+Formally,
+for every $y \in \mathcal{R}$ such that $y \neq f(x)$ holds,
+and for every \emph{prover strategy} $\prover'$,
+verifier $\verifier$ rejects with high probability.
+(Again, $\verifier$'s random seed is uniformly random.)
+%
+Prover strategy means that $\prover'$ may violate the protocol to increase its chances to convince $\verifier$ of the false statement.
+In other words,
+$\prover'$ uses all computational resources it has to break the scheme.
+When we prove soundness,
+we \emph{cannot} rely on the equations on the prover's side to hold,
+as those might be violated.
+We can only rely on the verifier's side.
+%
+The rejection probability is common set to $1 - \frac{1}{|\field|}$
+for IP systems that are defined over a field $\field$.
+
+\subsection{Computational Soundness}
+
+Statistical soundness has the problem that $\prover'$ is Turing-complete,
+so it can break cryptographic primitives like digital signatures and encryption.
+\emph{Computational soundness} on the other hand considers only \emph{polynomial} prover strategies.
+%
+An IP system where the prover is assumed to run in polynomial time is called an \emph{argument system},
+and its proofs are called \emph{arguments}.
+%
+In this document,
+we repeatedly use cryptography and thus make use of computational soundness.
+
+\subsection{Proofs for Languages}
+
+We can model an IP so that the prover tries to convince the verifier that a given word is in a given language.
+This is useful for our intuition and
+for defining complexity classes that are solvable by IP systems.
+%
+Formally,
+there is a language $\lang \subseteq \{ 0, 1 \}^n$ for some fixed $n \geq 0$.
+We set function $f: \{ 0, 1 \}^n \to \{ 0, 1 \}$ such that $f(x) = 1$ iff $x \in \lang$ holds.
+In this case, $x$ is a word over $\{ 0, 1 \}$ and $f$ encodes membership in $\lang$.
+%
+An IP for a function $y = f(x)$ is equivalent to an IP for the language $\{ (x, y) \vert y = f(x) \}$ that encodes $f$ as a relation.
+Likewise, an IP for a language is defined as an IP for a function with range $\{ 0, 1 \}$.
+
+\subsection{Proofs of Knowledge}
+
+For every true statement $y = f(x)$ there is a \emph{witness} that proves it.
+\emph{Computing} the witness is hard,
+but once we have it,
+\emph{verifying} it is easy.
+This is the fundamental difference between computation and verification.
+%
+Since $f$ is a computable function,
+there exists a \emph{decidable} (i.e. simple) function $g$
+such that $y = f(x)$ holds iff $y = g(x, w)$ holds for some witness $w$.
+
+In an extended IP,
+the prover tries to convince the verifier of a statement $y = g(x, w)$ without revealing $w$.
+In other words,
+the prover tries to convince the verifier that it \emph{knows} a witness $w$ such that $y = g(x, w)$ holds.
+
+IPs of knowledge over functions are equivalent to IPs of knowledge over languages.
+%
+In general,
+$g$ is much easier to compute than $f$.
+If $f$ encodes an $\NP$-complete language then $g$ is solvable in $\PTime$.
+
+\subsection{Knowledge Soundness}
+
+The existence of a witness $w$ such that $y = g(x, w)$ holds is trivial for many functions.
+A discrete log \emph{exists} for \emph{each} point on an elliptic curve,
+but \emph{computing} the discrete log for \emph{any} point is infeasible.
+We need to revise our soundness notion:
+%
+An IP system is \emph{knowledge-sound} if the verifier (almost) always rejects statements $y = f(x)$
+if the prover doesn't \emph{know} a witness $w$ such that $g(x, w) = f(x) = y$ holds.
+
+\subsubsection{Computational Epistemology}
+
+What does it mean for an algorithm to \enquote{know} something?
+This seemingly harmless question underlies the definition of knowledge soundness and has far-reaching consequences for our work.
+%
+We proceed by defining words like \enquote{know} and \enquote{learn} formally
+and build some intuition based on that.
+We have to understand that algorithms are not people,
+so we cannot apply human standards to them.
+We have to unlearn what it means to \enquote{know} and to build back up from first principles that make sense for algorithms.
+
+Here is the mental model:
+%
+An algorithm \enquote{knows} what it can compute in polynomial time.
+It obviously knows its initial parameters and everything it receives from the outside world,
+but it can also do computations based on known values to arrive at new ones that it also \enquote{knows}.
+%
+An algorithm \enquote{learns} a value if it receives it from the outside world
+or if it arrives at the value in a computation based on a value that it previously learned.
+\enquote{Learning} means that the algorithm gets to know a value that it previously did not know.
+
+Importantly,
+an algorithm cannot do exponential computations to learn new values.
+It cannot compute the discrete logarithm of an elliptic curve point,
+it cannot produce the solution to a sudoku, etc.
+The exponential barrier is useful for our epistemology because
+polynomial computations are seen as feasible while exponential ones are seen as infeasible.
+It is fine to apply reasonable effort to learn something new.
+If I apply \emph{un}reasonable effort, then that is cheating!
+If the prover knows the solution to a sudoku that it handcrafted in many laborious (exponential) hours,
+the verifier should not be able to steal it just like that.
+Cryptography builds on one-way functions that are easy (polynomial) to compute on way
+but hard (exponential) to compute the other way.
+The verifier should not be able to break any of the prover's cryptographic primitives
+and the prover should not be able to manufacture broken primitives that try to convince the verifier of false statements.
+
+\subsubsection{Extractor}
+
+How do we prove that $\prover$ knows the required witness?
+%
+We can do a thought experiment based on our newly gained epistemology:
+If we can make $\prover$ spit out the witness in polynomial time,
+then it must have known it!
+%
+Remember that the witness is the result of an exponential computation based on the public problem description.
+%
+We start interacting with the prover,
+not knowing the witness,
+and we cannot learn it independently because of the polynomial time constraint.
+Only because of our \emph{interaction} with the prover do we manage to learn the witness in polynomial time.
+Where did the witness come from?
+It could not come from us because we don't know it.
+It must have come from the prover how \emph{knew} it!
+
+Formally,
+there is a probabilistic algorithm,
+called the \emph{extractor} and denoted by $\extractor$,
+that extracts the witness $w$ from any prover \emph{strategy} $\prover'$ in polynomial time.
+Prover strategy, again, means that the prover can try to cheat and still we manage to extract.
+An IP system is knowledge-sound if there exists such an extraction algorithm.
+
+Constructing an extractor involves making copies of $\prover$
+and running the protocol many times for strategically-chosen values on the verifier's side.
+Turing machines can be started, stopped and replicated.
+The extractor takes the role of verifier.
+Effectively,
+the extractor is \emph{rewinding} the prover to a previous state in the protocol,
+having learned something from the prover's output so far.
+What is really happening is that the extractor makes a copy of the state of $\prover$,
+runs $\prover$ for some more steps,
+and then \enquote{rewinds} by using the copy.
+Nevertheless,
+rewinding is a useful abstraction that hides messy low-level details.
+
+Safe to say,
+this kind of interaction would not be allowed in a real setting.
+No real prover would let a third party manipulate itself like that
+to extract the precious secrets that the prover holds.
+Provers would reveal the secret witness to every verifier that they interact with.
+But the above is a thought experiment.
+Precisely \emph{because} it could happen (if the provers are not careful),
+they must know the witness.
+
+\subsection{Zero Knowledge}
+
+In an IP of knowledge the prover tries to convince the verifier that it knows a witness that satisfies some property.
+The prover does so without revealing the witness to the verifier.
+%
+\emph{Zero-knowledge} (ZK) means that the verifier learns nothing from its exchange with prover,
+besides that the statement which the prover means to prove is true.
+%
+The verifier cannot use what it learned to convince a third party of the statement,
+since the verifier did not learn \emph{why} the statement is true,
+just that it \emph{is} true.
+%
+The transcript of the exchange does not constitute a proof.
+%
+A third party that eavesdrops on the conversation will not be convinced of the proof.
+%
+What convinced the verifier is precisely its \emph{interaction} with the prover:
+The prover has to meet the challenges from the verifier \emph{in order} and those challenges are \emph{random}.
+If the prover manages to meet those challenges then that implies that the prover was ready to meet a much larger set of challenges,
+enough to convince the verifier.
+
+\subsubsection{Simulator}
+
+How do we prove that the verifier doesn't learn anything?
+Again, we do a thought experiment:
+%
+If the transcripts are so random-looking that the verifier could generate them itself,
+then there is no knowledge in the transcripts (that the verifier doesn't already know)!
+%
+Information theory tells us that it does not matter when the verifier starts extracting,
+so we assume it starts at the end of the exchange when the transcript is finished.
+%
+If there is anything of value that the verifier could learn,
+then it should not already know it (polynomial computations).
+If we can show that the verifier \emph{can} always generate the same transcripts via a polynomial algorithm,
+then it cannot learn anything.
+Everything the verifier could extract from the transcripts it already knows,
+as by our epistemology.
+
+Formally,
+an IP system is \emph{zero-knowledge} if there there is a probabilistic algorithm,
+called the \emph{simulator} and denoted by $\simulator$,
+that generates a random distribution of transcripts,
+which is indistinguishable from the distribution generated by $\prover$ and $\verifier$,
+in polynomial time.
+The word \enquote{indistinguishable} is formally defined below (see Section~\ref{ssec:zk-flavors}).
+
+Simulators commonly reverse the order of messages,
+pick random values that are not originally random,
+and calculate other values based on equations even though those values are originally random.
+What matters is the transcript alone and not how it was generated.
+The generated transcripts should be valid and have the same distribution as the original ones.
+
+Again,
+this is a setting that would not occur in reality.
+Verifiers only care about their \emph{interaction} with the prover,
+not about the transcript.
+Verifiers want to \emph{choose} their random challenges.
+The simulator chooses its own challenges.
+No verifier would be fooled by a simulator.
+This is why an IP system can be sound and zero-knowledge at the same time.
+
+\subsubsection{ZK in Many Flavors}%
+\label{ssec:zk-flavors}
+
+There are different definitions of indistinguishability of transcripts.
+The verifier may also violate the protocol to increase its chances at knowledge extraction.
+The different notions form natural hierarchies.
+We will focus on Perfect Honest-Verifier ZK in this document.
+
+\begin{description}
+    \item[Perfect ZK:]
+        The transcripts generated by $\simulator$ and those generated by $\prover$ and $\verifier$
+        are exactly the same distribution.
+    \item[Statistical ZK (SZK):]
+        The transcripts generated by $\simulator$ and those generated by $\prover$ and $\verifier$
+        have \enquote{negligible statistical distance}.
+        This means that the distributions cannot be distinguished by any algorithm with non-negligible probability
+        given a polynomial number of samples.
+    \item[Computational ZK (CZK):]
+        The transcripts generated by $\simulator$ and those generated by $\prover$ and $\verifier$
+        cannot be distinguished with non-negligible probability by a polynomial-time algorithm
+        given a polynomial number of samples.
+    \item[Honest-Verifier ZK (HVZK):]
+        The verifier $\verifier$ behaves as prescribed by the protocol.
+    \item[Dishonest-Verifier ZK:]
+        The verifier $\verifier$ is any probabilistic polynomial-time algorithm (verifier strategy $\verifier'$).
+        A simulator for a dishonest verifier must know $\verifier'$ and interact to its challenges.
+        The simulator takes the role of prover.
+        This is more complicated than Honest-Verifier ZK and won't be covered in this document.
+    \item[Plain ZK:]
+        The verifier $\verifier$ has inputs $x, y, f$.
+        This means that every run of the protocol is independent.
+    \item[Auxiliary-Input ZK (AIZK):]
+        The verifier $\verifier$ has an \emph{auxiliary input} $z$ in addition to the above,
+        which is known to $\verifier$ and $\simulator$ but not to $\prover$.
+        The verifier can use $z$ to learn information across multiple runs of the protocol.
+        The \emph{composition} of AIZK protocols in a larger protocol is itself AIZK.
+        Honest verifiers don't make use of auxiliary inputs,
+        so plain HVZK equals auxiliary-input HVZK.
+\end{description}
+

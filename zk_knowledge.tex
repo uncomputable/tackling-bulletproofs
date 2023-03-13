@@ -1,0 +1,208 @@
+\section{Knowledge of Scalars}
+
+\subsection{Knowledge of a Single Scalar}
+
+We can prove knowledge of a single scalar $x \in \scalars$ as follows:
+%
+A point $P$ is publicly known; this is called the \emph{public key}.
+$\prover$ tries to convince $\verifier$ that it knows $x$ such that $xG = P$;
+this is called the private or \emph{secret key}.
+In other words,
+$\prover$ knows the discrete logarithm of $P$.
+
+\begin{enumerate}
+    \item $\prover:$
+        \begin{itemize}
+            \item $k \sample \scalars$
+            \item $R = kG \in \curve$
+        \end{itemize}
+    \item $\prover \to \verifier: R$
+    \item \hfill $\verifier: e \sample \scalars$
+    \item \hfill $\prover \from \verifier: e$
+    \item $\prover: s = k + ex \in \scalars$
+    \item $\prover \to \verifier: s$
+    \item \hfill $\verifier: sG \overset{?}{=} R + eP$
+\end{enumerate}
+
+\subsubsection{Perfect Completeness}
+
+$\prover$ \emph{always} manages to convince $\verifier$ because the following equalities hold:
+
+\[
+    R + eP = kG + exG = sG
+\]
+
+\subsubsection{Knowledge Soundness}
+
+This is also called \emph{special soundness},
+because Schnorr is a $\Sigma$-protocol.
+%
+We construct $\extractor$ as follows:
+
+\begin{itemize}
+    \item Run $\prover$ until it sends $R$ and make a copy
+    \item Run the copy $2$ times for different values $e \in \scalars$
+    \item The transcripts are $(R, e, s)$ and $(R, e', s')$ where $e \neq e'$
+    \item Compute $x = \frac{s - s'}{e - e'}$
+\end{itemize}
+%
+\begin{align*}
+    R + eP = kG + exG = sG \implies& k + ex = s \\
+    R + e'P = kG + e'xG = s'G \implies& k + e'x = s' \\
+    \iff& s' - e'x + ex = s \\
+    \iff& (e - e')x = s - s' \\
+    \iff& x = \frac{e - e'}{s - s'}
+\end{align*}
+%
+This algorithm runs in polynomial time and finds secret key $x$ with probability $1$.
+
+\subsubsection{Honest-Verifier Perfect ZK}
+
+We construct $\simulator$ for an honest verifier as follows:
+%
+\begin{itemize}
+    \item Choose $e, s \in \scalars$ randomly
+    \item Set $R = sG - eP$
+\end{itemize}
+%
+The simulated transcripts are valid:
+%
+\[
+    R + eP = sG - eP + eP = (k + ex)G = sG
+\]
+%
+The simulated transcripts have \emph{exactly} the same distribution as the original transcripts.
+The latter is as follows.
+\emph{(The probabilities mean that the variables take a given value from their domain.)}
+%
+\begin{align*}
+    \prob{R} = \frac{1}{n} \quad \prob{e} = \frac{1}{n} \quad \prob{R, e} = \frac{1}{n^2} \\
+    \condprob{s}{R, e} = 1 \implies \prob{R, e, s} = \frac{1}{n^2}
+\end{align*}
+%
+The simulated transcripts are as follows:
+%
+\begin{align*}
+    \prob{e} = \frac{1}{n} \quad \prob{s} = \frac{1}{n} \quad \prob{e, s} = \frac{1}{n^2} \\
+    \condprob{R}{e, s} = 1 \implies \prob{R, e, s} = \frac{1}{n^2}
+\end{align*}
+%
+As you can see, the independent probability $\prob{R, e, s}$ of the final transcript is the same for both distributions.
+We make use of the fact $\prob{A, B} = \condprob{A}{B} \cdot \prob{B}$.
+
+\subsection{Knowledge of Multiple Scalars}
+
+We prove knowledge of a set of vectors as follows:
+A vector $\vec{C}$ of vector Pedersen commitments is publicly known, defined as below.
+$\prover$ tries to convince $\verifier$ that it knows the openings $\{ (r_i, \vec{x}_i) \vert 1 \leq i \leq m \}$ to these commitments.
+%
+\[
+    \vec{C} = C_1, \ldots, C_m\ \text{where}\ C_i = r_iH + \vec{x}_i\vec{G}\ \text{and}\ \vec{x}_i \in (\scalars)^k\ \text{for}\ 1 \leq i \leq m
+\]
+
+\begin{enumerate}
+    \item $\prover:$
+        \begin{itemize}
+            \item $r_0 \sample \scalars \quad \vec{x}_0 \sample \scalars^k$
+            \item $C_0 = r_0 H + \vec{x}_0\vec{G} \in \curve$
+        \end{itemize}
+    \item $\prover \to \verifier: C_0$
+    \item \hfill $\verifier: e \sample \scalars$
+    \item \hfill $\prover \from \verifier: e$
+    \item $\prover:$
+        \begin{itemize}
+            \item $\vec{z} = \sum^m_{i = 0} e^i \vec{x}_i \in \scalars^k$
+            \item $s = \sum^m_{i = 0} e^i r_i \in \scalars$
+        \end{itemize}
+    \item $\prover \to \verifier: \vec{z}, s$
+    \item \hfill $\verifier: \sum^m_{i = 0} e^i C_i \overset{?}{=} sH + \vec{z}\vec{G}$
+\end{enumerate}
+
+\subsubsection{Perfect Completeness}
+
+$\prover$ always manages to convince $\verifier$ because of the following equalities:
+
+\[
+    sH + \vec{z}\vec{G}
+    = \sum^m_{i = 0} e^i r_i H + \sum^m_{i = 0} e^i \vec{x}_i \vec{G}
+    = \sum^m_{i = 0} e^i (r_i H + \vec{x}_i \vec{G}) = \sum^m_{i = 0} e^i C_i
+\]
+
+\subsubsection{Knowledge Soundness}
+
+We construct $\extractor$ as follows:
+%
+\begin{itemize}
+    \item Run $\prover$ until it sends $C_0$ and make a copy
+    \item Run the copy $m + 1$ times for pairwise distinct values $e \in \scalars$
+    \item The transcripts are $(C_0, e_j, (\vec{z}_j, s_j)$ for $0 \leq j \leq k$
+    \item For valid transcripts, we have $\vec{z} = \sum^m_{i = 0} e^i \vec{x}_i$ (see below)
+    \item Every component $0 \leq j < k$ of $\vec{z}$ is the evaluation $z_j = \sum^m_{i = 0} e^i (x_i)_j$ of a polynomial of degree $m$ where $e$ is the \enquote{x-value} and $\{ (x_i)_j \vert 0 \leq i \leq m \}$ are the \enquote{coefficients}
+    \item Using $m + 1$ transcripts, we can interpolate the polynomials $z_j$ using the so-called Vandermonde matrix (see below)
+    \item The interpolation yields $\vec{x}_i$ for $0 \leq i \leq m$ (analogously, $s$ can be interpolated to yield the blinding factors)
+\end{itemize}
+%
+We start by establishing the relationship between $\vec{x}$, $\vec{z}$ and $e$.
+This is given on the Prover's side, but we don't know if the Prover is honest!
+The following lines hold with high probability because Pedersen commitments are binding.
+%
+\begin{align*}
+    \sum^m_{i = 0} e^i C_i &= sH + \vec{z}\vec{G} \\
+    \sum^m_{i = 0} e^i (r_iH + \vec{x}_i\vec{G}) &= sH + \vec{z}\vec{G} \\
+    \sum^m_{i = 0} e^i \vec{x}_i &= \vec{z}
+\end{align*}
+%
+The \href{https://en.wikipedia.org/wiki/Vandermonde\_matrix}{Vandermonde matrix} is a tool to evaluate polynomials of degree $m$:
+Given this matrix $V$ that contains the x-values and a vector $A$ that contains the coefficients,
+we can compute a vector $Y$ of $m + 1$ many y-values by matrix multiplication $VA = Y$.
+%
+We can invert $V$ to compute $A$ from $Y$ by $A = V^{-1}Y$.
+$V$ is invertible if its determinant is zero which in turn is the case if the x-values in $V$ are pairwise distinct.
+%
+All this is to say that we can interpolate a polynomial of degree $m$ given $m + 1$ evaluations at pairwise distinct x-values.
+The resulting polynomial is unique.
+Watch this \href{https://yewtu.be/watch?v=Cov\_kLatdlc}{YouTube video} for an in-depth explanation.
+
+Note that the interpolation works only if $C_0$ is fixed.
+$C_0$ blinds both $\vec{z}$ and $s$.
+Because $\prover$ randomly chooses $C_0$ at the beginning,
+the polynomials that are to be interpolated keep changing.
+Interpolation works only because $\extractor$ fixes $C_0$ at the beginning.
+ 
+\subsubsection{Honest-Verifier Perfect ZK}
+
+We construct $\simulator$ for an honest verifier as follows:
+
+\begin{itemize}
+    \item Choose $e, s \in \scalars$ and $\vec{z} \in (\scalars)^k$ randomly
+    \item Set $C_0 = (sH + \vec{z}\vec{G}) - \sum^m_{i = 0} e^i C_i$
+\end{itemize}
+%
+The simulated transcripts are valid:
+\[
+    sH + \vec{z}\vec{G} = C_0 + \sum^m_{i = 1} e^i C_i = \sum^m_{i = 0} e^i C_i
+\]
+%
+The simulated transcripts have the same distribution as the original transcripts.
+The latter is as follows:
+%
+\begin{align*}
+    &\prob{r_0} = \frac{1}{n} \quad \prob{\vec{x}_0} = \frac{1}{n^k} \quad \prob{C_0} = \frac{1}{n} \quad \prob{e} = \frac{1}{n} \quad \prob{C_0, e} = \frac{1}{n^2} \\
+    &\condprob{\vec{z}, s}{C_0, e} = \frac{1}{n^k} \implies \prob{C_0, e, \vec{z}, s} = \frac{1}{n^{k + 2}}
+\end{align*}
+%
+It is important to understand the conditional probability $\condprob{\vec{z}, s}{C_0, e}$.
+$\vec{z}$ depends on $\vec{x}_0$, and $s$ depends on $r_0$.
+For any given value of $C_0$,
+there are $n^k$ combinations of $\vec{x}_0$ and $r_0$.
+Imagine $n^k$ random vectors $\vec{x}_0$ and a fixed blinding factor $r_0$ for each.
+$\vec{z}$ and $s$ depend on different values, but they \emph{jointly} depend on $C_0$.
+%
+The simulated transcripts are as follows:
+%
+\begin{align*}
+    &\prob{e} = \frac{1}{n} \quad \prob{\vec{z}} = \frac{1}{n^k} \quad \prob{s} = \frac{1}{n} \quad \prob{e, \vec{z}, s} = \frac{1}{n^{k + 2}} \\
+    &\condprob{C_0}{e, \vec{z}, s} = 1 \implies \prob{C_0, e, \vec{z}, s} = \frac{1}{n^{k + 2}}
+\end{align*}
+%
+As you can see, the independent probability $\prob{C_0, e, \vec{z}, s}$ of the final transcript is the same for both distributions.
